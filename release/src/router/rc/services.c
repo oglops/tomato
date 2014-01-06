@@ -2086,6 +2086,33 @@ void restart_nas_services(int stop, int start)
 }
 #endif // TCONFIG_USB
 
+#ifdef TCONFIG_ADBLOCK
+void start_adblock()
+{
+	if (nvram_match("adblock_enable", "1")) {
+		xstart("/usr/sbin/adaway");
+		eval("/usr/sbin/inetd", "-e");
+
+	}
+}
+
+void stop_adblock()
+{
+	if (nvram_match("adblock_enable", "0")) {
+	/* adblock is disabled, clean up */
+		xstart("/usr/sbin/adaway");
+	}
+
+	/* finally, kill inetd */
+        if (getpid() != 1) {
+                stop_service("inetd");
+                return;
+        }
+
+        killall_tk("inetd");
+}
+#endif
+
 // -----------------------------------------------------------------------------
 
 /* -1 = Don't check for this program, it is not expected to be running.
@@ -2182,6 +2209,10 @@ void start_services(void)
 #ifdef TCONFIG_NFS
 	start_nfs();
 #endif
+
+#ifdef TCONFIG_ADBLOCK
+	start_adblock();
+#endif
 }
 
 void stop_services(void)
@@ -2227,6 +2258,9 @@ void stop_services(void)
 	stop_zebra();
 	stop_nas();
 //	stop_syslog();
+#ifdef TCONFIG_ADBLOCK
+	stop_adblock();
+#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -2822,6 +2856,14 @@ TOP:
 		}
  		goto CLEAR;
  	}
+#endif
+
+#ifdef TCONFIG_ADBLOCK
+	if (strcmp(service, "adblock") == 0) {
+                if (action & A_STOP) stop_adblock();
+                if (action & A_START) start_adblock();
+                goto CLEAR;
+}
 #endif
 
 CLEAR:

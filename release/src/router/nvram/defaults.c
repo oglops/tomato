@@ -1175,6 +1175,10 @@ const defaults_t defaults[] = {
 	{ "tor_custom",				""			},
 #endif
 
+#ifdef TCONFIG_ADBLOCK
+	{ "adblock_enable",			"0"			},
+#endif
+
 	{ NULL, NULL	}
 };
 

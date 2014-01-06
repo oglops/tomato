@@ -253,6 +253,13 @@ ifneq ($(TCONFIG_DNSCRYPT),y)
 	sed -i $(INSTALLDIR)/www/about.asp -e "/DNSCRYPT-BEGIN/,/DNSCRYPT-END/d"
 endif
 
+# Only include AdBlock pages if AdBlock is compiled in
+ifneq ($(TCONFIG_ADBLOCK),y)
+	rm -f $(INSTALLDIR)/www/admin-adblock.asp
+	sed -i $(INSTALLDIR)/www/tomato.js -e "/ADBLOCK-BEGIN/,/ADBLOCK-END/d"
+	sed -i $(INSTALLDIR)/www/about.asp -e "/ADBLOCK-BEGIN/,/ADBLOCK-END/d"
+endif
+
 # clean up
 	cd $(INSTALLDIR)/www && \
 	for F in $(wildcard *.asp *.js *.jsx *.html); do \

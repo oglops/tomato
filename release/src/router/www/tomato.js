@@ -2462,6 +2462,9 @@ REMOVE-END */
 /* VPN-END */
 		null,
 		['Administration',		'admin', 0, [
+/* ADBLOCK-BEGIN */
+			['AdBlock',			'adblock.asp'],
+/* ADBLOCK-END */
 			['Admin Access',		'access.asp'],
 			['TomatoAnon',			'tomatoanon.asp'],
 			['Bandwidth Monitoring',	'bwm.asp'],

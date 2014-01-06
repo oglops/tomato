@@ -93,6 +93,8 @@ obj-y += libusb10
 obj-y += usbmodeswitch
 obj-$(TCONFIG_FTP) += vsftpd
 
+obj-$(TCONFIG_ADBLOCK) += adblock
+
 ifeq ($(CONFIG_LINUX26),y)
 ifeq ($(TCONFIG_SAMBASRV),y)
 NEED_EX_NLS = y
@@ -2029,6 +2031,11 @@ comgt-install: comgt
 
 comgt-clean:
 	-@$(MAKE) -C comgt clean
+
+adblock-install:
+	install -D -m 755 adblock/nullserv $(INSTALLDIR)/adblock/usr/sbin/nullserv
+	install -D -m 755 adblock/adaway $(INSTALLDIR)/adblock/usr/sbin/adaway
+
 
 #
 # Generic rules

@@ -1,0 +1,104 @@
+#!/usr/bin/env /bin/sh
+
+# Copyright (c) 2014 Tomatosoup
+# Copyright (c) 2013 Flexion.Org, http://flexion.org.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+### functions
+enable()
+{
+	# prepare inetd.conf
+	grep "^www.*nullserv$" /etc/inetd.conf 2>&1 >/dev/null
+	if [ $? -ne 0 ]; then
+		echo "www  stream  tcp  nowait  nobody  /usr/sbin/nullserv  nullserv" >> /etc/inetd.conf
+	fi
+
+	# re-read configuration - just to be sure
+	pid=`ps | grep inetd | grep -v grep | awk '{print $1}'`
+	if [ ! -z $pid ]; then
+		kill -HUP $pid
+	fi
+
+	# update blocklists
+	update
+
+	# restart dnsmasq
+	/sbin/service dnsmasq restart 2>&1 >/dev/null
+
+	# Clean up
+	rm -f /tmp/hosts.* 2>/dev/null
+
+	# setup crontab for refreshing blocklists
+	cru a adblock "0 3 * * * /usr/sbin/adaway update"
+
+	echo "All done!"
+	return 0
+}
+
+disable()
+{
+	# disable AdBlock and cleanup
+	rm -f /etc/dnsmasq/hosts/blkhosts 2>/dev/null
+	sed -i "/^www.*nullserv$/d" /etc/inetd.conf
+	/sbin/service dnsmasq restart 2>&1 >/dev/null
+	cru d adblock
+
+	return 0
+}
+
+update()
+{
+	COUNT=1
+	NULLSERV_IP=`nvram get lan_ipaddr`
+
+	for URL in "http://winhelp2002.mvps.org/hosts.txt" \
+		"http://hosts-file.net/ad_servers.txt" \
+		"http://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext" \
+		"http://sysctl.org/cameleon/hosts" \
+		"http://adaway.sufficientlysecure.org/hosts.txt"
+	do
+		echo "Downloading ${URL}"
+		wget -cq ${URL} -T 2 -O /tmp/hosts.${COUNT}
+		if [ $? -ne 0 ]; then
+			echo "WARNING! wget failed. Skipping hosts from ${URL}"
+			rm -f /tmp/hosts.${COUNT} 2>/dev/null
+		else
+			/usr/bin/dos2unix /tmp/hosts.${COUNT}
+		fi
+		COUNT=$((${COUNT} + 1))
+	done
+
+	# Merge, clean and sort the hosts.
+	# Replace 127.0.0.1/0.0.0.0 with the nullserv IP address.
+	echo "Merging hosts"
+	grep -Evh "localhost" /tmp/hosts.* | tr '\t' ' ' | sed -e '/^#/d' -e 's/#.*$//' -e 's/  / /g' \
+		 -e 's/ $//' -e "s/127\.0\.0\.1/${NULLSERV_IP}/" -e "s/0\.0\.0\.0/${NULLSERV_IP}/" | sort -u > /etc/dnsmasq/hosts/blkhosts
+
+}
+
+### main
+adb=`nvram get adblock_enable`
+
+if [ ${adb:-} -eq 1 ]; then
+	case ${1:-} in
+		u*) update ;;
+		*)  enable ;;
+	esac
+else
+	disable
+fi
+
+exit 0

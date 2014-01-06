@@ -224,6 +224,12 @@ Copyright (C) 2009 Tomasz Słodkowicz<br>
 - Revised IP/MAC Bandwidth Limiter<br>
 <br>
 
+<!-- ADBLOCK-BEGIN -->
+<b>"tomatosoup" feature:</b><br>
+- simple AdBlock with GUI<br>
+Copyright (C) 2014 Andreas Schuh<br>
+<!-- ADBLOCK-END -->
+
 <br>
 Based on Tomato Firmware v<% version(); %><br>
 Copyright (C) 2006-2010 Jonathan Zarate<br>

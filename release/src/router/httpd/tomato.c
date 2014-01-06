@@ -1506,6 +1506,10 @@ wl_ap_ssid
 	{ "pptp_client_stateless",V_01                  },
 #endif
 
+#ifdef TCONFIG_ADBLOCK
+	{ "adblock_enable",	V_01			},
+#endif
+
 	{ NULL }
 };
 
