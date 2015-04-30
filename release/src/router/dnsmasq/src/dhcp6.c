@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2013 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2014 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 struct iface_param {
   struct dhcp_context *current;
   struct dhcp_relay *relay;
-  struct in6_addr fallback, relay_local;
+  struct in6_addr fallback, relay_local, ll_addr, ula_addr;
   int ind, addr_match;
 };
 
@@ -158,6 +158,8 @@ void dhcp6_packet(time_t now)
       parm.ind = if_index;
       parm.addr_match = 0;
       memset(&parm.fallback, 0, IN6ADDRSZ);
+      memset(&parm.ll_addr, 0, IN6ADDRSZ);
+      memset(&parm.ula_addr, 0, IN6ADDRSZ);
       
       for (context = daemon->dhcp6; context; context = context->next)
 	if (IN6_IS_ADDR_UNSPECIFIED(&context->start6) && context->prefix == 0)
@@ -210,7 +212,7 @@ void dhcp6_packet(time_t now)
       lease_prune(NULL, now); /* lose any expired leases */
       
       port = dhcp6_reply(parm.current, if_index, ifr.ifr_name, &parm.fallback, 
-			 sz, &from.sin6_addr, now);
+			 &parm.ll_addr, &parm.ula_addr, sz, &from.sin6_addr, now);
       
       lease_update_file(now);
       lease_update_dns(0);
@@ -309,6 +311,11 @@ static int complete_context6(struct in6_addr *local,  int prefix,
   
   if (if_index == param->ind)
     {
+      if (IN6_IS_ADDR_LINKLOCAL(local))
+	param->ll_addr = *local;
+      else if (IN6_IS_ADDR_ULA(local))
+	param->ula_addr = *local;
+
       if (!IN6_IS_ADDR_LOOPBACK(local) &&
 	  !IN6_IS_ADDR_LINKLOCAL(local) &&
 	  !IN6_IS_ADDR_MULTICAST(local))
@@ -330,13 +337,9 @@ static int complete_context6(struct in6_addr *local,  int prefix,
 	    {
 	      if ((context->flags & CONTEXT_DHCP) &&
 		  !(context->flags & (CONTEXT_TEMPLATE | CONTEXT_OLD)) &&
-#ifdef HAVE_TOMATO
 		  prefix <= context->prefix &&
-#else
-		  prefix == context->prefix &&
-#endif
-		  is_same_net6(local, &context->start6, prefix) &&
-		  is_same_net6(local, &context->end6, prefix))
+		  is_same_net6(local, &context->start6, context->prefix) &&
+		  is_same_net6(local, &context->end6, context->prefix))
 		{
 		  
 		  
@@ -398,7 +401,7 @@ struct dhcp_config *config_find_by_address6(struct dhcp_config *configs, struct 
   return NULL;
 }
 
-struct dhcp_context *address6_allocate(struct dhcp_context *context,  unsigned char *clid, int clid_len, 
+struct dhcp_context *address6_allocate(struct dhcp_context *context,  unsigned char *clid, int clid_len, int temp_addr,
 				       int iaid, int serial, struct dhcp_netid *netids, int plain_range, struct in6_addr *ans)   
 {
   /* Find a free address: exclude anything in use and anything allocated to
@@ -415,9 +418,13 @@ struct dhcp_context *address6_allocate(struct dhcp_context *context,  unsigned c
   u64 j; 
 
   /* hash hwaddr: use the SDBM hashing algorithm.  This works
-     for MAC addresses, let's see how it manages with client-ids! */
-  for (j = iaid, i = 0; i < clid_len; i++)
-    j += clid[i] + (j << 6) + (j << 16) - j;
+     for MAC addresses, let's see how it manages with client-ids! 
+     For temporary addresses, we generate a new random one each time. */
+  if (temp_addr)
+    j = rand64();
+  else
+    for (j = iaid, i = 0; i < clid_len; i++)
+      j += clid[i] + (j << 6) + (j << 16) - j;
   
   for (pass = 0; pass <= plain_range ? 1 : 0; pass++)
     for (c = context; c; c = c->current)
@@ -427,7 +434,7 @@ struct dhcp_context *address6_allocate(struct dhcp_context *context,  unsigned c
 	continue;
       else
 	{ 
-	  if (option_bool(OPT_CONSEC_ADDR))
+	  if (!temp_addr && option_bool(OPT_CONSEC_ADDR))
 	    /* seed is largest extant lease addr in this context */
 	    start = lease_find_max_addr6(c) + serial;
 	  else
@@ -527,6 +534,8 @@ int config_valid(struct dhcp_config *config, struct dhcp_context *context, struc
 
 void make_duid(time_t now)
 {
+  (void)now;
+
   if (daemon->duid_config)
     {
       unsigned char *p;
@@ -539,8 +548,14 @@ void make_duid(time_t now)
     }
   else
     {
+      time_t newnow = 0;
+      
+      /* If we have no persistent lease database, or a non-stable RTC, use DUID_LL (newnow == 0) */
+#ifndef HAVE_BROKEN_RTC
       /* rebase epoch to 1/1/2000 */
-      time_t newnow = now - 946684800;
+      if (!option_bool(OPT_LEASE_RO) || daemon->lease_change_command)
+	newnow = now - 946684800;
+#endif      
       
       iface_enumerate(AF_LOCAL, &newnow, make_duid1);
       
@@ -559,23 +574,27 @@ static int make_duid1(int index, unsigned int type, char *mac, size_t maclen, vo
   unsigned char *p;
   (void)index;
   (void)parm;
-
+  time_t newnow = *((time_t *)parm);
+  
   if (type >= 256)
     return 1;
 
-#ifdef HAVE_BROKEN_RTC
-  daemon->duid = p = safe_malloc(maclen + 4);
-  daemon->duid_len = maclen + 4;
-  PUTSHORT(3, p); /* DUID_LL */
-  PUTSHORT(type, p); /* address type */
-#else
-  daemon->duid = p = safe_malloc(maclen + 8);
-  daemon->duid_len = maclen + 8;
-  PUTSHORT(1, p); /* DUID_LLT */
-  PUTSHORT(type, p); /* address type */
-  PUTLONG(*((time_t *)parm), p); /* time */
-#endif
-
+  if (newnow == 0)
+    {
+      daemon->duid = p = safe_malloc(maclen + 4);
+      daemon->duid_len = maclen + 4;
+      PUTSHORT(3, p); /* DUID_LL */
+      PUTSHORT(type, p); /* address type */
+    }
+  else
+    {
+      daemon->duid = p = safe_malloc(maclen + 8);
+      daemon->duid_len = maclen + 8;
+      PUTSHORT(1, p); /* DUID_LLT */
+      PUTSHORT(type, p); /* address type */
+      PUTLONG(*((time_t *)parm), p); /* time */
+    }
+  
   memcpy(p, mac, maclen);
 
   return 0;
@@ -619,13 +638,9 @@ static int construct_worker(struct in6_addr *local, int prefix,
     if (!(template->flags & CONTEXT_TEMPLATE))
       {
 	/* non-template entries, just fill in interface and local addresses */
-#ifdef HAVE_TOMATO
 	if (prefix <= template->prefix &&
-#else
-	if (prefix == template->prefix &&
-#endif
-	    is_same_net6(local, &template->start6, prefix) &&
-	    is_same_net6(local, &template->end6, prefix))
+	    is_same_net6(local, &template->start6, template->prefix) &&
+	    is_same_net6(local, &template->end6, template->prefix))
 	  {
 	    template->if_index = if_index;
 	    template->local6 = *local;
@@ -633,11 +648,7 @@ static int construct_worker(struct in6_addr *local, int prefix,
 	
       }
     else if (wildcard_match(template->template_interface, ifrn_name) &&
-#ifdef HAVE_TOMATO
 	     template->prefix >= prefix)
-#else
-	     template->prefix == prefix)
-#endif
       {
 	start6 = *local;
 	setaddr6part(&start6, addr6part(&template->start6));
@@ -657,6 +668,7 @@ static int construct_worker(struct in6_addr *local, int prefix,
 		  log_context(AF_INET6, context); 
 		  /* fast RAs for a while */
 		  ra_start_unsolicted(param->now, context);
+		  param->newone = 1; 
 		  /* Add address to name again */
 		  if (context->flags & CONTEXT_RA_NAME)
 		    param->newname = 1;
@@ -715,9 +727,7 @@ void dhcp_construct_contexts(time_t now)
      
       if (context->flags & CONTEXT_GC && !(context->flags & CONTEXT_OLD))
 	{
-	  
-	  if ((context->flags & (CONTEXT_RA_ONLY | CONTEXT_RA_NAME | CONTEXT_RA_STATELESS)) ||
-	      option_bool(OPT_RA))
+	  if ((context->flags & CONTEXT_RA) || option_bool(OPT_RA))
 	    {
 	      /* previously constructed context has gone. advertise it's demise */
 	      context->flags |= CONTEXT_OLD;

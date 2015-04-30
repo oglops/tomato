@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2013 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2014 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,12 +139,12 @@ void lease_init(time_t now)
 	  lease->expires = (time_t)ei + now;
 	else
 	  lease->expires = (time_t)0;
-#ifdef HAVE_BROKEN_RT
+#ifdef HAVE_BROKEN_RTC
 	lease->length = ei;
 #endif
 #else
-	/* strictly time_t is opaque, but this hack should work on all sane systems,
-	   even when sizeof(time_t) == 8 */
+	/* strictly time_t is opaque, but this hack should work on all sane
+           systems, even when sizeof(time_t) == 8 */
 	lease->expires = (time_t)ei;
 #endif
 	
@@ -327,7 +327,7 @@ else
 	file_dirty = 0;
     }
   
-  /* Set alarm for when the first lease expires + slop. */
+  /* Set alarm for when the first lease expires. */
   next_event = 0;
 
 #ifdef HAVE_DHCP6
@@ -352,8 +352,8 @@ else
 
   for (lease = leases; lease; lease = lease->next)
     if (lease->expires != 0 &&
-	(next_event == 0 || difftime(next_event, lease->expires + 10) > 0.0))
-      next_event = lease->expires + 10;
+	(next_event == 0 || difftime(next_event, lease->expires) > 0.0))
+      next_event = lease->expires;
    
   if (err)
     {
@@ -373,16 +373,21 @@ static int find_interface_v4(struct in_addr local, int if_index, char *label,
 			     struct in_addr netmask, struct in_addr broadcast, void *vparam)
 {
   struct dhcp_lease *lease;
-  
+  int prefix = netmask_length(netmask);
+
   (void) label;
   (void) broadcast;
   (void) vparam;
 
   for (lease = leases; lease; lease = lease->next)
-    if (!(lease->flags & (LEASE_TA | LEASE_NA)))
-      if (is_same_net(local, lease->addr, netmask))
-	lease_set_interface(lease, if_index, *((time_t *)vparam));
-  
+    if (!(lease->flags & (LEASE_TA | LEASE_NA)) &&
+	is_same_net(local, lease->addr, netmask) && 
+	prefix > lease->new_prefixlen) 
+      {
+	lease->new_interface = if_index;
+        lease->new_prefixlen = prefix;
+      }
+
   return 1;
 }
 
@@ -392,17 +397,23 @@ static int find_interface_v6(struct in6_addr *local,  int prefix,
 			     int preferred, int valid, void *vparam)
 {
   struct dhcp_lease *lease;
-  
+
   (void)scope;
   (void)flags;
   (void)preferred;
   (void)valid;
+  (void)vparam;
 
   for (lease = leases; lease; lease = lease->next)
     if ((lease->flags & (LEASE_TA | LEASE_NA)))
-      if (is_same_net6(local, &lease->addr6, prefix))
-	lease_set_interface(lease, if_index, *((time_t *)vparam));
-  
+      if (is_same_net6(local, &lease->addr6, prefix) && prefix > lease->new_prefixlen) {
+        /* save prefix length for comparison, as we might get shorter matching
+         * prefix in upcoming netlink GETADDR responses
+         * */
+        lease->new_interface = if_index;
+        lease->new_prefixlen = prefix;
+      }
+
   return 1;
 }
 
@@ -435,18 +446,33 @@ void lease_update_slaac(time_t now)
    start-time. */
 void lease_find_interfaces(time_t now)
 {
+  struct dhcp_lease *lease;
+  
+  for (lease = leases; lease; lease = lease->next)
+    lease->new_prefixlen = lease->new_interface = 0;
+
   iface_enumerate(AF_INET, &now, find_interface_v4);
 #ifdef HAVE_DHCP6
   iface_enumerate(AF_INET6, &now, find_interface_v6);
+#endif
 
+  for (lease = leases; lease; lease = lease->next)
+    if (lease->new_interface != 0) 
+      lease_set_interface(lease, lease->new_interface, now);
+}
+
+#ifdef HAVE_DHCP6
+void lease_make_duid(time_t now)
+{
   /* If we're not doing DHCPv6, and there are not v6 leases, don't add the DUID to the database */
-  if (!daemon->duid && daemon->dhcp6)
+  if (!daemon->duid && daemon->doing_dhcp6)
     {
       file_dirty = 1;
       make_duid(now);
     }
-#endif
 }
+#endif
+
 
 
 
@@ -760,14 +786,23 @@ struct dhcp_lease *lease6_allocate(struct in6_addr *addrp, int lease_type)
 
 void lease_set_expires(struct dhcp_lease *lease, unsigned int len, time_t now)
 {
-  time_t exp = now + (time_t)len;
-  
+  time_t exp;
+
   if (len == 0xffffffff)
     {
       exp = 0;
       len = 0;
     }
-  
+  else
+    {
+      exp = now + (time_t)len;
+      /* Check for 2038 overflow. Make the lease
+	 inifinite in that case, as the least disruptive
+	 thing we can do. */
+      if (difftime(exp, now) <= 0.0)
+	exp = 0;
+    }
+
   if (exp != lease->expires)
     {
       dns_dirty = 1;

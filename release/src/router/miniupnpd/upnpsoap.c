@@ -1,7 +1,7 @@
-/* $Id: upnpsoap.c,v 1.116 2013/05/16 10:41:57 nanard Exp $ */
+/* $Id: upnpsoap.c,v 1.132 2014/12/09 09:46:46 nanard Exp $ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
- * (c) 2006-2013 Thomas Bernard
+ * (c) 2006-2014 Thomas Bernard
  * This software is subject to the conditions detailed
  * in the LICENCE file provided within the distribution */
 
@@ -45,17 +45,21 @@ BuildSendAndCloseSoapResp(struct upnphttp * h,
 		"</s:Body>"
 		"</s:Envelope>\r\n";
 
-	BuildHeader_upnphttp(h, 200, "OK",  sizeof(beforebody) - 1
-		+ sizeof(afterbody) - 1 + bodylen );
+	int r = BuildHeader_upnphttp(h, 200, "OK",  sizeof(beforebody) - 1
+	                             + sizeof(afterbody) - 1 + bodylen );
 
-	memcpy(h->res_buf + h->res_buflen, beforebody, sizeof(beforebody) - 1);
-	h->res_buflen += sizeof(beforebody) - 1;
+	if(r >= 0) {
+		memcpy(h->res_buf + h->res_buflen, beforebody, sizeof(beforebody) - 1);
+		h->res_buflen += sizeof(beforebody) - 1;
 
-	memcpy(h->res_buf + h->res_buflen, body, bodylen);
-	h->res_buflen += bodylen;
+		memcpy(h->res_buf + h->res_buflen, body, bodylen);
+		h->res_buflen += bodylen;
 
-	memcpy(h->res_buf + h->res_buflen, afterbody, sizeof(afterbody) - 1);
-	h->res_buflen += sizeof(afterbody) - 1;
+		memcpy(h->res_buf + h->res_buflen, afterbody, sizeof(afterbody) - 1);
+		h->res_buflen += sizeof(afterbody) - 1;
+	} else {
+		BuildResp2_upnphttp(h, 500, "Internal Server Error", NULL, 0);
+	}
 
 	SendRespAndClose_upnphttp(h);
 }
@@ -170,8 +174,7 @@ GetCommonLinkProperties(struct upnphttp * h, const char * action)
 	static const char resp[] =
 		"<u:%sResponse "
 		"xmlns:u=\"%s\">"
-		/*"<NewWANAccessType>DSL</NewWANAccessType>"*/
-		"<NewWANAccessType>Cable</NewWANAccessType>"
+		"<NewWANAccessType>%s</NewWANAccessType>"
 		"<NewLayer1UpstreamMaxBitRate>%lu</NewLayer1UpstreamMaxBitRate>"
 		"<NewLayer1DownstreamMaxBitRate>%lu</NewLayer1DownstreamMaxBitRate>"
 		"<NewPhysicalLinkStatus>%s</NewPhysicalLinkStatus>"
@@ -182,6 +185,7 @@ GetCommonLinkProperties(struct upnphttp * h, const char * action)
 	struct ifdata data;
 	const char * status = "Up";	/* Up, Down (Required),
 	                             * Initializing, Unavailable (Optional) */
+	const char * wan_access_type = "Cable"; /* DSL, POTS, Cable, Ethernet */
 	char ext_ip_addr[INET_ADDRSTRLEN];
 
 	if((downstream_bitrate == 0) || (upstream_bitrate == 0))
@@ -197,7 +201,8 @@ GetCommonLinkProperties(struct upnphttp * h, const char * action)
 	}
 	bodylen = snprintf(body, sizeof(body), resp,
 	    action, "urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1",
-		upstream_bitrate, downstream_bitrate,
+	    wan_access_type,
+	    upstream_bitrate, downstream_bitrate,
 	    status, action);
 	BuildSendAndCloseSoapResp(h, body, bodylen);
 }
@@ -410,6 +415,14 @@ AddPortMapping(struct upnphttp * h, const char * action)
 	       action, eport, int_ip, iport, protocol, desc, leaseduration,
 	       r_host ? r_host : "NULL");
 
+	/* TODO : be compliant with IGD spec for updating existing port mappings.
+	See "WANIPConnection:1 Service Template Version 1.01" 2.2.20.PortMappingDescription :
+	Overwriting Previous / Existing Port Mappings:
+	If the RemoteHost, ExternalPort, PortMappingProtocol and InternalClient are
+	exactly the same as an existing mapping, the existing mapping values for InternalPort,
+	PortMappingDescription, PortMappingEnabled and PortMappingLeaseDuration are
+	overwritten.
+	*/
 	r = upnp_redirect(r_host, eport, int_ip, iport, protocol, desc, leaseduration);
 
 	ClearNameValueList(&data);
@@ -699,13 +712,37 @@ DeletePortMapping(struct upnphttp * h, const char * action)
 
 	eport = (unsigned short)atoi(ext_port);
 
-	/* TODO : if in secure mode, check the IP
+	syslog(LOG_INFO, "%s: external port: %hu, protocol: %s",
+		action, eport, protocol);
+
+	/* if in secure mode, check the IP
 	 * Removing a redirection is not a security threat,
 	 * just an annoyance for the user using it. So this is not
 	 * a priority. */
-
-	syslog(LOG_INFO, "%s: external port: %hu, protocol: %s",
-		action, eport, protocol);
+	if(GETFLAG(SECUREMODEMASK))
+	{
+		char int_ip[32];
+		struct in_addr int_ip_addr;
+		unsigned short iport;
+		unsigned int leaseduration = 0;
+		r = upnp_get_redirection_infos(eport, protocol, &iport,
+		                               int_ip, sizeof(int_ip),
+		                               NULL, 0, NULL, 0,
+		                               &leaseduration);
+		if(r >= 0)
+		{
+			if(inet_pton(AF_INET, int_ip, &int_ip_addr) > 0)
+			{
+				if(h->clientaddr.s_addr != int_ip_addr.s_addr)
+				{
+					SoapError(h, 606, "Action not authorized");
+					/*SoapError(h, 714, "NoSuchEntryInArray");*/
+					ClearNameValueList(&data);
+					return;
+				}
+			}
+		}
+	}
 
 	r = upnp_delete_redirection(eport, protocol);
 
@@ -764,12 +801,23 @@ DeletePortMappingRange(struct upnphttp * h, const char * action)
 		return;
 	}
 
+	syslog(LOG_INFO, "%s: deleting external ports: %hu-%hu, protocol: %s",
+	       action, startport, endport, protocol);
+
 	port_list = upnp_get_portmappings_in_range(startport, endport,
 	                                           protocol, &number);
+	if(number == 0)
+	{
+		SoapError(h, 730, "PortMappingNotFound");
+		ClearNameValueList(&data);
+		return;
+	}
+
 	for(i = 0; i < number; i++)
 	{
 		r = upnp_delete_redirection(port_list[i], protocol);
-		/* TODO : check return value for errors */
+		syslog(LOG_INFO, "%s: deleting external port: %hu, protocol: %s: %s",
+		       action, port_list[i], protocol, r < 0 ? "failed" : "ok");
 	}
 	free(port_list);
 	BuildSendAndCloseSoapResp(h, resp, sizeof(resp)-1);
@@ -987,6 +1035,7 @@ http://www.upnp.org/schemas/gw/WANIPConnection-v2.xsd">
 			body = realloc(body, bodyalloc);
 			if(!body)
 			{
+				syslog(LOG_CRIT, "realloc(%p, %u) FAILED", body_sav, (unsigned)bodyalloc);
 				ClearNameValueList(&data);
 				SoapError(h, 501, "ActionFailed");
 				free(body_sav);
@@ -1011,6 +1060,20 @@ http://www.upnp.org/schemas/gw/WANIPConnection-v2.xsd">
 	free(port_list);
 	port_list = NULL;
 
+	if((bodylen + sizeof(list_end) + 1024) > bodyalloc)
+	{
+		char * body_sav = body;
+		bodyalloc += (sizeof(list_end) + 1024);
+		body = realloc(body, bodyalloc);
+		if(!body)
+		{
+			syslog(LOG_CRIT, "realloc(%p, %u) FAILED", body_sav, (unsigned)bodyalloc);
+			ClearNameValueList(&data);
+			SoapError(h, 501, "ActionFailed");
+			free(body_sav);
+			return;
+		}
+	}
 	memcpy(body+bodylen, list_end, sizeof(list_end));
 	bodylen += (sizeof(list_end) - 1);
 	bodylen += snprintf(body+bodylen, bodyalloc-bodylen, resp_end,
@@ -1038,8 +1101,12 @@ SetDefaultConnectionService(struct upnphttp * h, const char * action)
 		 * 721 InvalidServiceID
 		 * 723 InvalidConnServiceSelection */
 #ifdef UPNP_STRICT
-		if(0 != memcmp(uuidvalue, p, sizeof("uuid:00000000-0000-0000-0000-000000000000") - 1)) {
+		char * service;
+		service = strchr(p, ',');
+		if(0 != memcmp(uuidvalue_wcd, p, sizeof("uuid:00000000-0000-0000-0000-000000000000") - 1)) {
 			SoapError(h, 720, "InvalidDeviceUUID");
+		} else if(service == NULL || 0 != strcmp(service+1, SERVICE_ID_WANIPC)) {
+			SoapError(h, 721, "InvalidServiceID");
 		} else
 #endif
 		{
@@ -1069,7 +1136,7 @@ GetDefaultConnectionService(struct upnphttp * h, const char * action)
 	int bodylen;
 
 	bodylen = snprintf(body, sizeof(body), resp,
-	                   action, uuidvalue, action);
+	                   action, uuidvalue_wcd, action);
 	BuildSendAndCloseSoapResp(h, body, bodylen);
 }
 #endif
@@ -1208,19 +1275,21 @@ GetFirewallStatus(struct upnphttp * h, const char * action)
 
 	bodylen = snprintf(body, sizeof(body), resp,
 		action, "urn:schemas-upnp-org:service:WANIPv6FirewallControl:1",
-		ipv6fc_firewall_enabled, ipv6fc_inbound_pinhole_allowed, action);
+	    GETFLAG(IPV6FCFWDISABLEDMASK) ? 0 : 1,
+	    GETFLAG(IPV6FCINBOUNDDISALLOWEDMASK) ? 0 : 1,
+	    action);
 	BuildSendAndCloseSoapResp(h, body, bodylen);
 }
 
 static int
 CheckStatus(struct upnphttp * h)
 {
-	if (!ipv6fc_firewall_enabled)
+	if (GETFLAG(IPV6FCFWDISABLEDMASK))
 	{
 		SoapError(h, 702, "FirewallDisabled");
 		return 0;
 	}
-	else if(!ipv6fc_inbound_pinhole_allowed)
+	else if(GETFLAG(IPV6FCINBOUNDDISALLOWEDMASK))
 	{
 		SoapError(h, 703, "InboundPinholeNotAllowed");
 		return 0;
@@ -1480,7 +1549,7 @@ AddPinhole(struct upnphttp * h, const char * action)
 	 * InternalClient and Protocol are the same than an existing pinhole,
 	 * but LeaseTime is different, the device MUST extend the existing
 	 * pinhole's lease time and return the UniqueID of the existing pinhole. */
-	r = upnp_add_inboundpinhole(rem_host, rport, int_ip, iport, proto, ltime, &uid);
+	r = upnp_add_inboundpinhole(rem_host, rport, int_ip, iport, proto, "IGD2 pinhole", ltime, &uid);
 
 	switch(r)
 	{
@@ -1545,7 +1614,9 @@ UpdatePinhole(struct upnphttp * h, const char * action)
 	 * it doesn't have access to, because of its public access */
 	n = upnp_get_pinhole_info(uid, NULL, 0, NULL,
 	                          iaddr, sizeof(iaddr), &iport,
-	                          NULL, NULL, NULL);
+	                          NULL, /* proto */
+	                          NULL, 0, /* desc, desclen */
+	                          NULL, NULL);
 	if (n >= 0)
 	{
 		if(PinholeVerification(h, iaddr, iport) <= 0)
@@ -1592,7 +1663,7 @@ GetOutboundPinholeTimeout(struct upnphttp * h, const char * action)
 	int opt=0, proto=0;
 	unsigned short iport, rport;
 
-	if (!ipv6fc_firewall_enabled)
+	if (GETFLAG(IPV6FCFWDISABLEDMASK))
 	{
 		SoapError(h, 702, "FirewallDisabled");
 		return;
@@ -1667,7 +1738,9 @@ DeletePinhole(struct upnphttp * h, const char * action)
 	 * it doesn't have access to, because of its public access */
 	n = upnp_get_pinhole_info(uid, NULL, 0, NULL,
 	                          iaddr, sizeof(iaddr), &iport,
-	                          &proto, &leasetime, NULL);
+	                          &proto,
+	                          NULL, 0, /* desc, desclen */
+	                          &leasetime, NULL);
 	if (n >= 0)
 	{
 		if(PinholeVerification(h, iaddr, iport) <= 0)
@@ -1734,7 +1807,9 @@ CheckPinholeWorking(struct upnphttp * h, const char * action)
 	r = upnp_get_pinhole_info(uid,
 	                          NULL, 0, NULL,
 	                          iaddr, sizeof(iaddr), &iport,
-	                          NULL, NULL, &packets);
+	                          NULL, /* proto */
+	                          NULL, 0, /* desc, desclen */
+	                          NULL, &packets);
 	if (r >= 0)
 	{
 		if(PinholeVerification(h, iaddr, iport) <= 0)
@@ -1793,7 +1868,9 @@ GetPinholePackets(struct upnphttp * h, const char * action)
 	 * it doesn't have access to, because of its public access */
 	n = upnp_get_pinhole_info(uid, NULL, 0, NULL,
 	                          iaddr, sizeof(iaddr), &iport,
-	                          &proto, &leasetime, &packets);
+	                          &proto,
+	                          NULL, 0, /* desc, desclen */
+	                          &leasetime, &packets);
 	if (n >= 0)
 	{
 		if(PinholeVerification(h, iaddr, iport)<=0)
@@ -1813,6 +1890,104 @@ GetPinholePackets(struct upnphttp * h, const char * action)
 }
 #endif
 
+#ifdef ENABLE_DP_SERVICE
+static void
+SendSetupMessage(struct upnphttp * h, const char * action)
+{
+	static const char resp[] =
+		"<u:%sResponse "
+		"xmlns:u=\"%s\">"
+		"<NewOutMessage>%s</NewOutMessage>"
+		"</u:%sResponse>";
+	char body[1024];
+	int bodylen;
+	struct NameValueParserData data;
+	const char * ProtocolType;	/* string */
+	const char * InMessage;		/* base64 */
+	const char * OutMessage = "";	/* base64 */
+
+	ParseNameValue(h->req_buf + h->req_contentoff, h->req_contentlen, &data);
+	ProtocolType = GetValueFromNameValueList(&data, "NewProtocolType");	/* string */
+	InMessage = GetValueFromNameValueList(&data, "NewInMessage");	/* base64 */
+
+	if(ProtocolType == NULL || InMessage == NULL)
+	{
+		ClearNameValueList(&data);
+		SoapError(h, 402, "Invalid Args");
+		return;
+	}
+	/*if(strcmp(ProtocolType, "DeviceProtection:1") != 0)*/
+	if(strcmp(ProtocolType, "WPS") != 0)
+	{
+		ClearNameValueList(&data);
+		SoapError(h, 600, "Argument Value Invalid"); /* 703 ? */
+		return;
+	}
+	/* TODO : put here code for WPS */
+
+	bodylen = snprintf(body, sizeof(body), resp,
+	                   action, "urn:schemas-upnp-org:service:DeviceProtection:1",
+	                   OutMessage, action);
+	BuildSendAndCloseSoapResp(h, body, bodylen);
+	ClearNameValueList(&data);
+}
+
+static void
+GetSupportedProtocols(struct upnphttp * h, const char * action)
+{
+	static const char resp[] =
+		"<u:%sResponse "
+		"xmlns:u=\"%s\">"
+		"<NewProtocolList>%s</NewProtocolList>"
+		"</u:%sResponse>";
+	char body[1024];
+	int bodylen;
+	const char * ProtocolList =
+		"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+		"<SupportedProtocols xmlns=\"urn:schemas-upnp-org:gw:DeviceProtection\""
+		" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
+		" xsi:schemaLocation=\"urn:schemas-upnp-org:gw:DeviceProtection"
+		" http://www.upnp.org/schemas/gw/DeviceProtection-v1.xsd\">"
+		"<Introduction><Name>WPS</Name></Introduction>"
+		"<Login><Name>PKCS5</Name></Login>"
+		"</SupportedProtocols>";
+
+	bodylen = snprintf(body, sizeof(body), resp,
+	                   action, "urn:schemas-upnp-org:service:DeviceProtection:1",
+	                   ProtocolList, action);
+	BuildSendAndCloseSoapResp(h, body, bodylen);
+}
+
+static void
+GetAssignedRoles(struct upnphttp * h, const char * action)
+{
+	static const char resp[] =
+		"<u:%sResponse "
+		"xmlns:u=\"%s\">"
+		"<NewRoleList>%s</NewRoleList>"
+		"</u:%sResponse>";
+	char body[1024];
+	int bodylen;
+	const char * RoleList = "Public"; /* list of roles separated by spaces */
+
+#ifdef ENABLE_HTTPS
+	if(h->ssl != NULL) {
+		/* we should get the Roles of the session (based on client certificate) */
+		X509 * peercert;
+		peercert = SSL_get_peer_certificate(h->ssl);
+		if(peercert != NULL) {
+			RoleList = "Admin Basic";
+			X509_free(peercert);
+		}
+	}
+#endif
+
+	bodylen = snprintf(body, sizeof(body), resp,
+	                   action, "urn:schemas-upnp-org:service:DeviceProtection:1",
+	                   RoleList, action);
+	BuildSendAndCloseSoapResp(h, body, bodylen);
+}
+#endif
 
 /* Windows XP as client send the following requests :
  * GetConnectionTypeInfo
@@ -1871,6 +2046,12 @@ soapMethods[] =
 	{ "CheckPinholeWorking", CheckPinholeWorking},	/* Optional */
 	{ "GetPinholePackets", GetPinholePackets},	/* Required */
 #endif
+#ifdef ENABLE_DP_SERVICE
+	/* DeviceProtection */
+	{ "SendSetupMessage", SendSetupMessage},	/* Required */
+	{ "GetSupportedProtocols", GetSupportedProtocols},	/* Required */
+	{ "GetAssignedRoles", GetAssignedRoles},	/* Required */
+#endif
 	{ 0, 0 }
 };
 
@@ -1881,30 +2062,32 @@ ExecuteSoapAction(struct upnphttp * h, const char * action, int n)
 	char * p2;
 	int i, len, methodlen;
 
-	i = 0;
+	/* SoapAction example :
+	 * urn:schemas-upnp-org:service:WANIPConnection:1#GetStatusInfo */
 	p = strchr(action, '#');
-
-	if(p)
-	{
+	if(p && (p - action) < n) {
 		p++;
 		p2 = strchr(p, '"');
-		if(p2)
+		if(p2 && (p2 - action) <= n)
 			methodlen = p2 - p;
 		else
 			methodlen = n - (p - action);
-		/*syslog(LOG_DEBUG, "SoapMethod: %.*s", methodlen, p);*/
-		while(soapMethods[i].methodName)
-		{
+		/*syslog(LOG_DEBUG, "SoapMethod: %.*s %d %d %p %p %d",
+		       methodlen, p, methodlen, n, action, p, (int)(p - action));*/
+		for(i = 0; soapMethods[i].methodName; i++) {
 			len = strlen(soapMethods[i].methodName);
-			if(strncmp(p, soapMethods[i].methodName, len) == 0)
-			{
+			if((len == methodlen) && memcmp(p, soapMethods[i].methodName, len) == 0) {
+#ifdef DEBUG
+				syslog(LOG_DEBUG, "Remote Call of SoapMethod '%s'\n",
+				       soapMethods[i].methodName);
+#endif /* DEBUG */
 				soapMethods[i].methodImpl(h, soapMethods[i].methodName);
 				return;
 			}
-			i++;
 		}
-
 		syslog(LOG_NOTICE, "SoapMethod: Unknown: %.*s", methodlen, p);
+	} else {
+		syslog(LOG_NOTICE, "cannot parse SoapAction");
 	}
 
 	SoapError(h, 401, "Invalid Action");

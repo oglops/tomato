@@ -89,10 +89,19 @@ const defaults_t defaults[] = {
 	{ "wan_gateway",		"0.0.0.0"		},	// WAN gateway
 	{ "wan_gateway_get",		"0.0.0.0"		},	// default gateway for PPP
 	{ "wan_dns",			""				},	// x.x.x.x x.x.x.x ...
+#ifdef TCONFIG_DNSSEC
+	{ "dnssec_enable",		"0"		},
+#endif
 #ifdef TCONFIG_DNSCRYPT
-	{ "dnscrypt_proxy",		""				},
+	{ "dnscrypt_proxy",		"0"			},
+	{ "dnscrypt_priority",		"1"			}, // 0=none, 1=strict-order, 2=no-resolv
 	{ "dnscrypt_port",		"40"			}, // local port
-	{ "dnscrypt_cmd",		"-m 99"			}, // optional arguments
+	{ "dnscrypt_resolver",		"opendns"		}, // default resolver
+	{ "dnscrypt_log",		"99"			}, // log level
+	{ "dnscrypt_manual",		"0"			}, // Set manual resolver
+	{ "dnscrypt_provider_name",	""			}, // Set manual provider name
+	{ "dnscrypt_provider_key",	""			}, // Set manual provider key
+	{ "dnscrypt_resolver_address",	""			}, // Set manual resolver address
 #endif
 	{ "wan_wins",			""				},	// x.x.x.x x.x.x.x ...
 	{ "wan_lease",			"86400"			},	// WAN lease time in seconds
@@ -174,6 +183,7 @@ const defaults_t defaults[] = {
 	{ "ipv6_prefix_length",		"64"				},	// The bit length of the prefix. Used by dhcp6c. For radvd, /64 is always assumed.
 	{ "ipv6_rtr_addr",		""				},	// defaults to $ipv6_prefix::1
 	{ "ipv6_radvd",			"1"				},	// Enable Router Advertisement (radvd)
+	{ "ipv6_dhcpd",			"1"				},	// Enable DHCPv6
 	{ "ipv6_accept_ra",		"1"				},	// Accept RA on bit 0WAN and/or bit1LAN interfaces
 	{ "ipv6_ifname",		"six0"				},	// The interface facing the rest of the IPv6 world
 	{ "ipv6_tun_v4end",		"0.0.0.0"			},	// Foreign IPv4 endpoint of SIT tunnel
@@ -188,6 +198,8 @@ const defaults_t defaults[] = {
 	{ "ipv6_6rd_prefix_length",	"32"				},	// 6RD prefix length (32-62) checkme
 	{ "ipv6_6rd_borderrelay",	"68.113.165.1"			},	// 6RD border relay address
 	{ "ipv6_6rd_ipv4masklen",	"0"				},	// 6RD IPv4 mask length (0-30) checkme
+	{ "ipv6_vlan",			"0"				},	// Enable IPv6 on 1=LAN1 2=LAN2 4=LAN3
+	{ "ipv6_isp_opt",		"0"				},	// wan.c add eval option for dhcpd
 #endif
 
 	// Wireless parameters
@@ -236,7 +248,7 @@ const defaults_t defaults[] = {
 	{ "wl_infra",			"1"				},	// Network Type (BSS/IBSS)
 	{ "wl_btc_mode",		"0"				},	// !!TB - BT Coexistence Mode
 	{ "wl_sta_retry_time",		"5"				},	// !!TB - Seconds between association attempts (0 to disable retries)
-	{ "wl_mitigation",		"0"				},	// Interference Mitigation Mode (0|1|2|3)
+	{ "wl_mitigation",		"0"				},	// Interference Mitigation Mode (0|1|2|3|4)
 
 	{ "wl_passphrase",		""				},	// Passphrase	// Add
 	{ "wl_wep_bit",			"128"			},	// WEP encryption [64 | 128] // Add
@@ -455,6 +467,7 @@ const defaults_t defaults[] = {
 	{ "udpxy_clients",		"3"				},
 	{ "udpxy_port",			"4022"				},
 	{ "ne_syncookies",		"0"				},	// tcp_syncookies
+	{ "DSCP_fix_enable",		"1"				},	// Comacst DSCP fix
 	{ "ne_snat",			"0"				},	// use SNAT instead of MASQUERADE
 	{ "dhcp_pass",			"1"				},	// allow DHCP responses
 	{ "ne_shlimit",			"1,3,60"			},	//shibby - enable limit connection attempts for sshd
@@ -571,8 +584,10 @@ const defaults_t defaults[] = {
 	{ "https_crt_cn",		""				},
 	{ "https_crt_file",		""				},
 	{ "https_crt",			""				},
+	{ "http_root",			"1"				},	// 0 - deny, 1 - Allow
 	{ "web_wl_filter",		"0"				},	// Allow/Deny Wireless Access Web
 	{ "web_css",			"openlinksys"			},
+	{ "web_dir",			"default"			},  // jffs, opt, tmp or default (/www)
 	{ "ttb_css",			"example"			},	//Tomato Themes Base
 	{ "web_svg",			"1"				},
 	{ "telnetd_eas",		"1"				},
@@ -687,7 +702,6 @@ const defaults_t defaults[] = {
 // admin-tomatoanon
 	{ "tomatoanon_enable",		"-1"				},
 	{ "tomatoanon_answer",		"0"				},
-	{ "tomatoanon_cru",		"6"				},
 	{ "tomatoanon_id",		""				},
 	{ "tomatoanon_notify",		"1"				},
 
@@ -863,6 +877,7 @@ const defaults_t defaults[] = {
 	{ "vpn_server1_crt",      ""              },
 	{ "vpn_server1_key",      ""              },
 	{ "vpn_server1_dh",       ""              },
+	{ "vpn_server1_br",       "br0"           },
 	{ "vpn_server2_poll",     "0"             },
 	{ "vpn_server2_if",       "tun"           },
 	{ "vpn_server2_proto",    "udp"           },
@@ -893,6 +908,7 @@ const defaults_t defaults[] = {
 	{ "vpn_server2_crt",      ""              },
 	{ "vpn_server2_key",      ""              },
 	{ "vpn_server2_dh",       ""              },
+	{ "vpn_server2_br",       "br0"           },
 	{ "vpn_client_eas",       ""              },
 	{ "vpn_client1_poll",     "0"             },
 	{ "vpn_client1_if",       "tun"           },
@@ -920,6 +936,7 @@ const defaults_t defaults[] = {
 	{ "vpn_client1_ca",       ""              },
 	{ "vpn_client1_crt",      ""              },
 	{ "vpn_client1_key",      ""              },
+	{ "vpn_client1_br",       "br0"           },
 	{ "vpn_client2_poll",     "0"             },
 	{ "vpn_client2_if",       "tun"           },
 	{ "vpn_client2_bridge",   "1"             },
@@ -946,6 +963,7 @@ const defaults_t defaults[] = {
 	{ "vpn_client2_ca",       ""              },
 	{ "vpn_client2_crt",      ""              },
 	{ "vpn_client2_key",      ""              },
+	{ "vpn_client2_br",       "br0"           },
 #endif	// vpn
 #ifdef TCONFIG_PPTPD
 	{ "pptp_client_enable",   "0"             },
@@ -963,6 +981,28 @@ const defaults_t defaults[] = {
 	{ "pptp_client_crypt",    "0"             },
 	{ "pptp_client_custom",   ""              },
 	{ "pptp_client_dfltroute","0"             },
+#endif
+
+#ifdef TCONFIG_TINC
+	{"tinc_wanup",			"0"		},
+	{"tinc_name",			""		},
+	{"tinc_devicetype",		"tun"		}, // tun, tap
+	{"tinc_mode",			"switch"	}, // switch, hub
+	{"tinc_vpn_netmask",		"255.255.0.0"	},
+	{"tinc_private_rsa",		""		},
+	{"tinc_private_ed25519",	""		},
+	{"tinc_custom",			""		},
+	{"tinc_hosts",			""		},
+	{"tinc_manual_firewall",	""		},
+	{"tinc_manual_tinc_up",		"0"		},
+	// scripts
+	{"tinc_tinc_up",		""		},
+	{"tinc_tinc_down",		""		},
+	{"tinc_host_up",		""		},
+	{"tinc_host_down",		""		},
+	{"tinc_subnet_up",		""		},
+	{"tinc_subnet_down",		""		},
+	{"tinc_firewall",		""		},
 #endif
 
 #ifdef TCONFIG_BT
@@ -1011,6 +1051,8 @@ const defaults_t defaults[] = {
 	{ "bt_ul_queue_enable",			"0"			},
 	{ "bt_ul_queue_size",			"5"			},
 	{ "bt_message",				"2"			},
+	{ "bt_log",				"0"			},
+	{ "bt_log_path",			"/var/log"		},
 #endif
 
 #if 0
@@ -1124,6 +1166,7 @@ const defaults_t defaults[] = {
 	{ "qosl_ulc",				""			},
 	{ "qosl_dlr",				""			},
 	{ "qosl_ulr",				""			},
+	{ "limit_br0_prio",			"0"			},
 	{ "limit_br1_enable",			"0"			},
 	{ "limit_br1_dlc",			""			},
 	{ "limit_br1_ulc",			""			},
@@ -1162,6 +1205,56 @@ const defaults_t defaults[] = {
 	{ "NC_RenewTimeout",			"0"			},
 	{ "NC_AllowedWebHosts",			""			},
 	{ "NC_BridgeLAN",			"br0"			},
+#endif
+
+//Tomato RAF - NGINX
+#ifdef TCONFIG_NGINX
+	{"nginx_enable",		"0"				}, // NGinX enabled
+	{"nginx_php",			"0"				}, // PHP enabled
+	{"nginx_keepconf",		"0"				}, // Enable/disable keep configuration files unmodified in /etc/nginx
+	{"nginx_docroot",		"/www"				}, // path for server files
+	{"nginx_port",			"85"				}, // port to listen
+	{"nginx_remote",		"0"				}, // open port from WAN site
+	{"nginx_fqdn",			"Tomato"			}, // server name
+	{"nginx_upload",		"100"				}, // upload file size limit
+	{"nginx_priority",		"10"				}, // server priority = worker_priority
+	{"nginx_custom",		""				}, // additional lines for nginx.conf
+	{"nginx_httpcustom",		""				}, // additional lines for nginx.conf
+	{"nginx_servercustom",		""				}, // additional lines for nginx.conf
+	{"nginx_phpconf",		""				}, // additional lines for php.ini
+	{"nginx_user",			"root"				}, // user/group
+	{"nginx_override",		"0"				}, // additional lines for php.ini
+	{"nginx_overridefile",		"/path/to/nginx.conf"		}, // user/group
+
+// bwq518 - MySQL
+        { "mysql_enable",                               "0"                     },
+        { "mysql_sleep",                                "2"                     },
+        { "mysql_check",                                "1"                     },
+        { "mysql_check_time",                           "1"                     },
+        { "mysql_binary",                               "internal"              },
+        { "mysql_binary_custom",                        "/mnt/sda1/mysql/bin"   },
+        { "mysql_usb_enable",                           "1"                     },
+        { "mysql_dlroot",                               ""                      },
+        { "mysql_datadir",                              "data"                  },
+        { "mysql_tmpdir",                               "tmp"                   },
+        { "mysql_server_custom",                        ""                      },
+        { "mysql_port",                                 "3306"                  },
+        { "mysql_allow_anyhost",                        "0"                     },
+        { "mysql_init_rootpass",                        "0"                     },
+        { "mysql_username",                             "root"                  },      // mysqladmin username
+        { "mysql_passwd",                               "admin"                 },      // mysqladmin password
+        { "mysql_key_buffer",                           "16"                    }, //KB
+        { "mysql_max_allowed_packet",                   "4"                     }, //MB
+        { "mysql_thread_stack",                         "128"                   }, //KB
+        { "mysql_thread_cache_size",                    "8"                     },
+        { "mysql_init_priv",                            "0"                     },
+        { "mysql_table_open_cache",                     "4"                     },
+        { "mysql_sort_buffer_size",                     "128"                   }, //KB
+        { "mysql_read_buffer_size",                     "128"                   }, //KB
+        { "mysql_query_cache_size",                     "16"                    }, //MB
+        { "mysql_read_rnd_buffer_size",                 "256"                   }, //KB
+        { "mysql_net_buffer_length",                    "2"                     }, //K
+        { "mysql_max_connections",                      "1000"                  },
 #endif
 
 #ifdef TCONFIG_TOR

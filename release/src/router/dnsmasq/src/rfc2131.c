@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2013 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2014 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,7 +92,10 @@ size_t dhcp_reply(struct dhcp_context *context, char *iface_name, int int_index,
   struct dhcp_netid known_id, iface_id, cpewan_id;
   struct dhcp_opt *o;
   unsigned char pxe_uuid[17];
-  unsigned char *oui = NULL, *serial = NULL, *class = NULL;
+  unsigned char *oui = NULL, *serial = NULL;
+#ifdef HAVE_SCRIPT
+  unsigned char *class = NULL;
+#endif
 
   subnet_addr.s_addr = override.s_addr = 0;
 
@@ -156,8 +159,9 @@ size_t dhcp_reply(struct dhcp_context *context, char *iface_name, int int_index,
 		  unsigned char *y = option_ptr(opt, offset + elen + 5);
 		  oui = option_find1(x, y, 1, 1);
 		  serial = option_find1(x, y, 2, 1);
-		  class = option_find1(x, y, 3, 1);
-		  
+#ifdef HAVE_SCRIPT
+		  class = option_find1(x, y, 3, 1);		  
+#endif
 		  /* If TR069-id is present set the tag "cpewan-id" to facilitate echoing 
 		     the gateway id back. Note that the device class is optional */
 		  if (oui && serial)
@@ -958,6 +962,8 @@ size_t dhcp_reply(struct dhcp_context *context, char *iface_name, int int_index,
     case DHCPDISCOVER:
       if (ignore || have_config(config, CONFIG_DISABLE))
 	{
+	  if (option_bool(OPT_QUIET_DHCP))
+	    return 0;
 	  message = _("ignored");
 	  opt = NULL;
 	}

@@ -11,8 +11,8 @@ dnscrypt-proxy(8) -- A DNSCrypt forwarder
 them using dnscrypt and forwards them to a remote dnscrypt-enabled
 resolver.
 
-Replies from the resolver are expected to be authenticated and
-encrypted or else they will be discarded.
+Replies from the resolver are expected to be authenticated or else
+they will be discarded.
 
 The proxy verifies the replies, decrypts them, and transparently
 forwards them to the local stub resolver.
@@ -49,6 +49,9 @@ ports.
 
   * `-k`, `--provider-key=<key>`: specify the provider public key (see below).
 
+  * `-L`, `--resolvers-list=<file>`: path to the CSV file containing
+    the list of available resolvers, and the parameters to use them.
+
   * `-l`, `--logfile=<file>`: log events to this file instead of the
     standard output.
 
@@ -60,6 +63,9 @@ ports.
     simultaneous active requests. The default value is 250.
 
   * `-p`, `--pidfile=<file>`: write the PID number to a file.
+
+  * `-R`, `--resolver-name=<name>`: name of the resolver to use, from
+    the list of available resolvers (see `-L`).
 
   * `-r`, `--resolver-address=<ip>[:port]`: a DNSCrypt-capable resolver IP
     address with an optional port. The default port is 443.
@@ -87,13 +93,19 @@ ports.
 A public key is 256-bit long, and it has to be specified as a hexadecimal
 string, with optional columns.
 
-## SIMPLE USAGE EXAMPLE
+## COMMON USAGE EXAMPLE
 
-    $ dnscrypt-proxy --daemonize
+    $ dnscrypt-proxy --daemonize --resolver-name=...
 
-## ADVANCED USAGE EXAMPLE
+The resolver name is the first column (Name) in the CSV file.
 
-    $ dnscrypt-proxy --provider-key=B735:1140:206F:225D:3E2B:D822:D7FD:691E:A1C3:3CC8:D666:8D0C:BE04:BFAB:CA43:FB79 --provider-name=2.dnscrypt-cert.dnscrypt.org. --resolver-address=208.67.220.220:53 --daemonize
+## USAGE EXAMPLE WITH A PRIVATE SERVER
+
+    $ dnscrypt-proxy --daemonize --provider-key=... --provider-name=... --resolver-address=...
+
+## BUGS AND SUPPORT
+
+Please report issues with DNSCrypt itself to http://dnscrypt.org/issues
 
 ## SEE ALSO
 

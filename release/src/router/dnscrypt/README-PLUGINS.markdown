@@ -4,8 +4,7 @@ DNSCrypt Plugins
 Overview
 --------
 
-Starting with version 1.1.0, `dnscrypt-proxy` can be extended with
-plugins.
+`dnscrypt-proxy` can be extended with plugins.
 
 A plugin can implement *pre-filters* and *post-filters*.
 
@@ -88,6 +87,12 @@ Each plugin can optionally parse one or more arguments:
 
     --plugin=...libdcplugin_example.la,--one,--two,--three=4
     --plugin=...libdcplugin_example2.la,127.0.0.1
+
+On Windows, example plugins relying on the ldns library require two
+extra DLLs:
+
+- `libgcc_s_dw2-1.dll`
+- `libeay32.dll`, from OpenSSL.
 
 The plugin API
 --------------

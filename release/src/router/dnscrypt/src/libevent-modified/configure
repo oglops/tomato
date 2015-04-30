@@ -1450,7 +1450,7 @@ Optional Features:
   --disable-debug-mode    disable support for running in debug mode
   --disable-libevent-install, disable installation of libevent
 
-  --disable-libevent-regress, skip regress in make check
+  --enable-libevent-regress, enable regress in make check
 
   --enable-function-sections, make static library allow smaller binaries with --gc-sections
 
@@ -4817,9 +4817,7 @@ fi
 
 # Check whether --enable-libevent-regress was given.
 if test "${enable_libevent_regress+set}" = set; then :
-  enableval=$enable_libevent_regress;
-else
-  enable_libevent_regress=yes
+  enableval=$enable_libevent_regress; enable_libevent_regress=yes
 fi
 
 # Check whether --enable-function-sections was given.
@@ -13197,7 +13195,7 @@ _ACEOF
 fi
 done
 
-for ac_func in getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton pipe eventfd sendfile mmap splice arc4random arc4random_buf issetugid geteuid getegid getprotobynumber setenv unsetenv putenv sysctl
+for ac_func in getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton pipe eventfd sendfile mmap splice arc4random arc4random_buf arc4random_addrandom issetugid geteuid getegid getprotobynumber setenv unsetenv putenv sysctl
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -15064,6 +15062,15 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
     # Disable the unused-function warnings, because these trigger
     # for minheap-internal.h related code.
     CFLAGS="$CFLAGS -Wno-unused-function"
+
+    # clang on macosx emits warnigns for each directory specified which
+    # isn't "used" generating a lot of build noise (typically 3 warnings
+    # per file
+    case "$host_os" in
+        darwin*)
+            CFLAGS="$CFLAGS -Qunused-arguments"
+        ;;
+    esac
   fi
 
 ##This will break the world on some 64-bit architectures

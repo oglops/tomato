@@ -158,14 +158,88 @@ sub fixDyn
 
 #shibby
 	fixDynDep("transmission-daemon", "libevent-2.0.so.5");
-	fixDynDep("transmission-daemon", "libcurl.so.4.2.0");
-#	fixDynDep("transmission-daemon", "libiconv.so.2");
+	fixDynDep("transmission-daemon", "libcurl.so.4.3.0");
+#	fixDynDep("transmission-daemon", "libiconv.so.2.4.0");
 	fixDynDep("transmission-remote", "libevent-2.0.so.5");
-	fixDynDep("transmission-remote", "libcurl.so.4.2.0");
-#	fixDynDep("transmission-remote", "libiconv.so.2");
+	fixDynDep("transmission-remote", "libcurl.so.4.3.0");
+#	fixDynDep("transmission-remote", "libiconv.so.2.4.0");
 	fixDynDep("radvd", "libdaemon.so.0.5.0");
 	fixDynDep("miniupnpd", "libnfnetlink.so.0.2.0");
-	fixDynDep("dnscrypt-proxy", "libsodium.so.4.5.0");
+	fixDynDep("dnscrypt-proxy", "libsodium.so.13.0.2");
+	fixDynDep("tincd", "liblzo2.so.2.0.0");
+	fixDynDep("openvpn", "liblzo2.so.2.0.0");
+
+#minidlna module, bwq518
+	fixDynDep("minidlna", "libz.so.1");
+	fixDynDep("minidlna", "libstdc.so.6");
+	fixDynDep("minidlna", "libiconv.so.2.4.0");
+	fixDynDep("minidlna", "libssl.so.1.0.0");
+	fixDynDep("minidlna", "libjpeg.so");
+	fixDynDep("minidlna", "libogg.so.0");
+	fixDynDep("minidlna", "libvorbis.so.0");
+	fixDynDep("minidlna", "libid3tag.so.0");
+	fixDynDep("minidlna", "libexif.so.12");
+	fixDynDep("minidlna", "libFLAC.so.8");
+	fixDynDep("libjepg.so", "libc.so.0");
+	fixDynDep("libavcodec.so.52", "libpthread.so.0");
+
+#mysql - bwq518
+	fixDynDep("mysql", "libmysqlclient.so.16.0.0");
+	fixDynDep("my_print_defaults", "libmysqlclient.so.16.0.0");
+	fixDynDep("myisamchk", "libmysqlclient.so.16.0.0");
+	fixDynDep("mysqladmin", "libmysqlclient.so.16.0.0");
+	fixDynDep("mysqld", "libmysqlclient.so.16.0.0");
+	fixDynDep("mysqldump", "libmysqlclient.so.16.0.0");
+	fixDynDep("mysql", "libmysqlclient_r.so.16.0.0");
+	fixDynDep("my_print_defaults", "libmysqlclient_r.so.16.0.0");
+	fixDynDep("myisamchk", "libmysqlclient_r.so.16.0.0");
+	fixDynDep("mysqladmin", "libmysqlclient_r.so.16.0.0");
+	fixDynDep("mysqld", "libmysqlclient_r.so.16.0.0");
+	fixDynDep("mysqldump", "libmysqlclient_r.so.16.0.0");
+	fixDynDep("libmysqlclient.so.16.0.0", "libz.so.1");
+	fixDynDep("libmysqlclient_r.so.16.0.0", "libz.so.1");
+	fixDynDep("libmysqlclient.so.16.0.0", "libncurses.so.5");
+	fixDynDep("libmysqlclient_r.so.16.0.0", "libncurses.so.5");
+	fixDynDep("libmysqlclient.so.16.0.0", "libcrypto.so.1.0.0");
+	fixDynDep("libmysqlclient_r.so.16.0.0", "libcrypto.so.1.0.0");
+	fixDynDep("libmysqlclient.so.16.0.0", "libssl.so.1.0.0");
+	fixDynDep("libmysqlclient_r.so.16.0.0", "libssl.so.1.0.0");
+	fixDynDep("mysql", "libz.so.1");
+	fixDynDep("mysqld", "libz.so.1");
+	fixDynDep("mysqldump", "libz.so.1");
+	fixDynDep("myisamchk", "libz.so.1");
+	fixDynDep("mysqladmin", "libz.so.1");
+	fixDynDep("my_print_defaults", "libz.so.1");
+	fixDynDep("mysql", "libncurses.so.5");
+	fixDynDep("mysqld", "libncurses.so.5");
+	fixDynDep("mysqldump", "libncurses.so.5");
+	fixDynDep("myisamchk", "libncurses.so.5");
+	fixDynDep("mysqladmin", "libncurses.so.5");
+	fixDynDep("my_print_defaults", "libncurses.so.5");
+	fixDynDep("mysql", "libz.so.1");
+	fixDynDep("mysqld", "libz.so.1");
+	fixDynDep("mysqldump", "libz.so.1");
+	fixDynDep("myisamchk", "libz.so.1");
+	fixDynDep("mysqladmin", "libz.so.1");
+	fixDynDep("my_print_defaults", "libz.so.1");
+	fixDynDep("mysql", "libncurses.so.5");
+	fixDynDep("mysqld", "libncurses.so.5");
+	fixDynDep("mysqldump", "libncurses.so.5");
+	fixDynDep("myisamchk", "libncurses.so.5");
+	fixDynDep("mysqladmin", "libncurses.so.5");
+	fixDynDep("my_print_defaults", "libncurses.so.5");
+	fixDynDep("mysql", "libcrypto.so.1.0.0");
+	fixDynDep("mysqld", "libcrypto.so.1.0.0");
+	fixDynDep("mysqldump", "libcrypto.so.1.0.0");
+	fixDynDep("myisamchk", "libcrypto.so.1.0.0");
+	fixDynDep("mysqladmin", "libcrypto.so.1.0.0");
+	fixDynDep("my_print_defaults", "libcrypto.so.1.0.0");
+	fixDynDep("mysql", "libssl.so.1.0.0");
+	fixDynDep("mysqld", "libssl.so.1.0.0");
+	fixDynDep("mysqldump", "libssl.so.1.0.0");
+	fixDynDep("myisamchk", "libssl.so.1.0.0");
+	fixDynDep("mysqladmin", "libssl.so.1.0.0");
+	fixDynDep("my_print_defaults", "libssl.so.1.0.0");
 
 #ipset modules
 	fixDynDep("libipset_iphash.so", "ipset");
@@ -189,6 +263,19 @@ sub fixDyn
 
 #	fixDynDep("libbcm.so", "libshared.so");
 #	fixDynDep("libbcm.so", "libc.so.0");
+
+	fixDynDep("nginx", "libpcre.so.1.2.3");
+	fixDynDep("nginx", "libpcreposix.so.0.0.2");
+	fixDynDep("php-cgi", "libxml2.so.2.9.1");
+	fixDynDep("php-cgi", "libpng12.so.0.51.0");
+	fixDynDep("php-cgi", "libpng.so.3.51.0");
+	fixDynDep("php-cgi", "libiconv.so.2.5.1");
+	fixDynDep("php-cgi", "libsqlite3.so.0.8.6");
+	fixDynDep("php-cli", "libxml2.so.2.9.1");
+	fixDynDep("php-cli", "libpng12.so.0.51.0");
+	fixDynDep("php-cli", "libpng.so.3.51.0");
+	fixDynDep("php-cli", "libiconv.so.2.5.1");
+	fixDynDep("php-cli", "libsqlite3.so.0.8.6");
 
 #!!TB - Updated Broadcom WL driver
 	fixDynDep("libbcmcrypto.so", "libc.so.0");
@@ -471,19 +558,19 @@ genSO("${root}/usr/lib/libssl.so.1.0.0", "${router}/openssl/libssl.a", "${strips
 genSO("${root}/usr/lib/libzebra.so", "${router}/zebra/lib/libzebra.a");
 genSO("${root}/usr/lib/libz.so.1", "${router}/zlib/libz.a");
 genSO("${root}/usr/lib/libjpeg.so", "${router}/jpeg/libjpeg.a");
-genSO("${root}/usr/lib/libsqlite3.so.0", "${router}/sqlite/.libs/libsqlite3.a");
+#genSO("${root}/usr/lib/libsqlite3.so.0.8.6", "${router}/sqlite/.libs/libsqlite3.a");
 genSO("${root}/usr/lib/libogg.so.0", "${router}/libogg/src/.libs/libogg.a");
 genSO("${root}/usr/lib/libvorbis.so.0", "${router}/libvorbis/lib/.libs/libvorbis.a", "", "-L${router}/libogg/src/.libs");
 genSO("${root}/usr/lib/libid3tag.so.0", "${router}/libid3tag/.libs/libid3tag.a", "", "-L${router}/zlib");
 genSO("${root}/usr/lib/libexif.so.12", "${router}/libexif/libexif/.libs/libexif.a");
 genSO("${root}/usr/lib/libFLAC.so.8", "${router}/flac/src/libFLAC/.libs/libFLAC.a", "", "-L${router}/libogg/src/.libs");
-genSO("${root}/usr/lib/libavcodec.so.52", "${router}/ffmpeg/libavcodec/libavcodec.a", "", "-L${router}/ffmpeg/libavutil");
-genSO("${root}/usr/lib/libavutil.so.50", "${router}/ffmpeg/libavutil/libavutil.a");
-genSO("${root}/usr/lib/libavformat.so.52", "${router}/ffmpeg/libavformat/libavformat.a", "", "-L${router}/ffmpeg/libavutil -L${router}/ffmpeg/libavcodec");
+genSO("${root}/usr/lib/libavcodec.so.52", "${router}/ffmpeg/libavcodec/libavcodec.a", "", "-L${router}/ffmpeg/libavutil -L${router}/zlib");
+genSO("${root}/usr/lib/libavutil.so.50", "${router}/ffmpeg/libavutil/libavutil.a", "-L${router}/zlib");
+genSO("${root}/usr/lib/libavformat.so.52", "${router}/ffmpeg/libavformat/libavformat.a", "", "-L${router}/ffmpeg/libavutil -L${router}/ffmpeg/libavcodec -L${router}/zlib");
 genSO("${root}/usr/lib/libsmb.so", "${router}/samba/source/bin/libsmb.a");
 genSO("${root}/usr/lib/libbigballofmud.so", "${router}/samba3/source/bin/libbigballofmud.a");
 
-genSO("${root}/usr/lib/liblzo2.so.2", "${router}/lzo/src/.libs/liblzo2.a");
+genSO("${root}/usr/lib/liblzo2.so.2.0.0", "${router}/lzo/src/.libs/liblzo2.a");
 #	genSO("${root}/usr/lib/libtamba.so", "${router}/samba3/source/bin/libtamba.a");
 #	genSO("${root}/usr/lib/libiptc.so", "${router}/iptables/libiptc/libiptc.a");
 #	genSO("${root}/usr/lib/libshared.so", "${router}/shared/libshared.a");
@@ -494,12 +581,15 @@ genSO("${root}/usr/lib/liblzo2.so.2", "${router}/lzo/src/.libs/liblzo2.a");
 genSO("${root}/usr/lib/libbcmcrypto.so", "${router}/libbcmcrypto/libbcmcrypto.a");
 
 #shibby
-genSO("${root}/usr/lib/libcurl.so.4.2.0", "${router}/libcurl/lib/.libs/libcurl.a", "", "-L${router}/zlib");
+genSO("${root}/usr/lib/libcurl.so.4.3.0", "${router}/libcurl/lib/.libs/libcurl.a", "", "-L${router}/zlib");
 genSO("${root}/usr/lib/libevent-2.0.so.5", "${router}/libevent/.libs/libevent.a");
 genSO("${root}/usr/lib/libdaemon.so.0.5.0", "${router}/libdaemon/libdaemon/.libs/libdaemon.a");
-#genSO("${root}/usr/lib/libiconv.so.2", "${router}/libiconv/lib/.libs/libiconv.a");
+genSO("${root}/usr/lib/libiconv.so.2.5.1", "${router}/libiconv/lib/.libs/libiconv.a");
 genSO("${root}/usr/lib/libnfnetlink.so.0.2.0", "${router}/libnfnetlink/src/.libs/libnfnetlink.a");
-genSO("${root}/usr/lib/libsodium.so.4.5.0", "${router}/libsodium/src/libsodium/.libs/libsodium.a");
+genSO("${root}/usr/lib/libsodium.so.13.0.2", "${router}/libsodium/src/libsodium/.libs/libsodium.a");
+genSO("${root}/usr/lib/libpng.so.3.51.0", "${router}/libpng/.libs/libpng.a", "", "-L${router}/zlib");
+genSO("${root}/usr/lib/libpng12.so.0.51.0", "${router}/libpng/.libs/libpng12.a", "", "-L${router}/zlib");
+genSO("${root}/usr/lib/libxml2.so.2.9.1", "${router}/libxml2/.libs/libxml2.a");
 
 print "\n";
 

@@ -15,6 +15,8 @@ ifeq ($(TCONFIG_USB),y)
 ifeq ($(CONFIG_LINUX26),y)
 #3G modem switch script
 	install -m 0700 switch3g $(INSTALLDIR)/usr/sbin
+#4G modem switch script
+	install -m 0700 switch4g $(INSTALLDIR)/usr/sbin
 endif
 endif
 
@@ -40,8 +42,11 @@ endif
 #Web Monitor Backup Script
 	install -m 0700 webmon_bkp $(INSTALLDIR)/usr/sbin
 
-#optware install script
+#optware/entware install script
+ifeq ($(TCONFIG_USB),y)
 	install -m 0700 optware-install.sh $(INSTALLDIR)/usr/sbin
+	install -m 0700 entware-install.sh $(INSTALLDIR)/usr/sbin
+endif
 
 # cron helper
 	install -m 0700 cru $(INSTALLDIR)/usr/sbin

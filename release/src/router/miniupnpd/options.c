@@ -1,8 +1,8 @@
-/* $Id: options.c,v 1.26 2012/06/29 19:26:09 nanard Exp $ */
+/* $Id: options.c,v 1.32 2014/05/22 07:52:45 nanard Exp $ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
  * author: Ryan Wagoner
- * (c) 2006-2012 Thomas Bernard
+ * (c) 2006-2014 Thomas Bernard
  * This software is subject to the conditions detailed
  * in the LICENCE file provided within the distribution */
 
@@ -14,6 +14,9 @@
 #include "config.h"
 #include "options.h"
 #include "upnppermissions.h"
+#ifdef PCP_SADSCP
+#include "pcplearndscp.h"
+#endif /* PCP_SADSPC */
 #include "upnpglobalvars.h"
 
 #ifndef DISABLE_CONFIG_FILE
@@ -28,11 +31,25 @@ static const struct {
 	{ UPNPEXT_IFNAME, "ext_ifname" },
 	{ UPNPEXT_IP,	"ext_ip" },
 	{ UPNPLISTENING_IP, "listening_ip" },
+#ifdef ENABLE_IPV6
+	{ UPNPIPV6_LISTENING_IP, "ipv6_listening_ip" },
+#endif /* ENABLE_IPV6 */
 	{ UPNPPORT, "port" },
+	{ UPNPPORT, "http_port" },	/* "port" and "http_port" are synonims */
+#ifdef ENABLE_HTTPS
+	{ UPNPHTTPSPORT, "https_port" },
+#endif /* ENABLE_HTTPS */
 	{ UPNPBITRATE_UP, "bitrate_up" },
 	{ UPNPBITRATE_DOWN, "bitrate_down" },
 	{ UPNPPRESENTATIONURL, "presentation_url" },
+#ifdef ENABLE_MANUFACTURER_INFO_CONFIGURATION
 	{ UPNPFRIENDLY_NAME, "friendly_name" },
+	{ UPNPMANUFACTURER_NAME, "manufacturer_name" },
+	{ UPNPMANUFACTURER_URL, "manufacturer_url" },
+	{ UPNPMODEL_NAME, "model_name" },
+	{ UPNPMODEL_DESCRIPTION, "model_description" },
+	{ UPNPMODEL_URL, "model_url" },
+#endif
 	{ UPNPNOTIFY_INTERVAL, "notify_interval" },
 	{ UPNPSYSTEM_UPTIME, "system_uptime" },
 	{ UPNPPACKET_LOG, "packet_log" },
@@ -47,6 +64,11 @@ static const struct {
 #endif
 #ifdef ENABLE_NATPMP
 	{ UPNPENABLENATPMP, "enable_natpmp"},
+#endif
+#ifdef ENABLE_PCP
+	{ UPNPPCPMINLIFETIME, "min_lifetime"},
+	{ UPNPPCPMAXLIFETIME, "max_lifetime"},
+	{ UPNPPCPALLOWTHIRDPARTY, "pcp_allow_thirdparty"},
 #endif
 	{ UPNPENABLE, "enable_upnp"},
 #ifdef USE_PF
@@ -122,8 +144,10 @@ readoptionsfile(const char * fname)
 		/* check for comments or empty lines */
 		if(name[0] == '#' || name[0] == '\0') continue;
 
+		len = strlen(name); /* length of the whole line excluding leading
+		                     * and ending white spaces */
 		/* check for UPnP permissions rule */
-		if(0 == memcmp(name, "allow", 5) || 0 == memcmp(name, "deny", 4))
+		if((len > 6) && (0 == memcmp(name, "allow", 5) || 0 == memcmp(name, "deny", 4)))
 		{
 			tmp = realloc(upnppermlist, sizeof(struct upnpperm) * (num_upnpperm+1));
 			if(tmp == NULL)
@@ -147,6 +171,33 @@ readoptionsfile(const char * fname)
 			}
 			continue;
 		}
+#ifdef PCP_SADSCP
+		/* check for DSCP values configuration */
+		if((len > 15) && 0 == memcmp(name, "set_learn_dscp", sizeof("set_learn_dscp")-1) )
+		{
+			tmp = realloc(dscp_values_list, sizeof(struct dscp_values) * (num_dscp_values+1));
+			if(tmp == NULL)
+			{
+				fprintf(stderr, "memory allocation error. DSCP line in file %s line %d\n",
+				        fname, linenum);
+			}
+			else
+			{
+				dscp_values_list = tmp;
+				/* parse the rule */
+				if(read_learn_dscp_line(dscp_values_list + num_dscp_values, name) >= 0)
+				{
+					num_dscp_values++;
+				}
+				else
+				{
+					fprintf(stderr, "parsing error file %s line %d : %s\n",
+					        fname, linenum, name);
+				}
+			}
+			continue;
+		}
+#endif /* PCP_SADSCP */
 		if(!(equals = strchr(name, '=')))
 		{
 			fprintf(stderr, "parsing error file %s line %d : %s\n",
@@ -248,7 +299,21 @@ freeoptions(void)
 		upnppermlist = NULL;
 		num_upnpperm = 0;
 	}
+#ifdef PCP_SADSCP
+	if(dscp_values_list)
+	{
+	    unsigned int i;
+		for (i = 0; i < num_dscp_values; i++) {
+			if (dscp_values_list[i].app_name) {
+				free(dscp_values_list[i].app_name);
+				dscp_values_list[i].app_name = NULL;
+			}
+		}
+		free(dscp_values_list);
+		dscp_values_list = NULL;
+		num_dscp_values = 0;
+	}
+#endif /* PCP_SADSCP */
 }
 
 #endif /* DISABLE_CONFIG_FILE */
-

@@ -1,7 +1,7 @@
-/* $Id: upnphttp.h,v 1.35 2012/10/03 21:03:50 nanard Exp $ */
+/* $Id: upnphttp.h,v 1.39 2014/12/09 09:46:46 nanard Exp $ */
 /* MiniUPnP project
  * http://miniupnp.free.fr/ or http://miniupnp.tuxfamily.org/
- * (c) 2006-2012 Thomas Bernard
+ * (c) 2006-2014 Thomas Bernard
  * This software is subject to the conditions detailed
  * in the LICENCE file provided within the distribution */
 
@@ -12,6 +12,10 @@
 #include <sys/queue.h>
 
 #include "config.h"
+
+#ifdef ENABLE_HTTPS
+#include <openssl/ssl.h>
+#endif /* ENABLE_HTTPS */
 
 #if 0
 /* according to "UPnP Device Architecture 1.0" */
@@ -53,7 +57,10 @@ struct upnphttp {
 #ifdef ENABLE_IPV6
 	int ipv6;
 	struct in6_addr clientaddr_v6;
-#endif
+#endif /* ENABLE_IPV6 */
+#ifdef ENABLE_HTTPS
+	SSL * ssl;
+#endif /* ENABLE_HTTPS */
 	enum httpStates state;
 	char HttpVer[16];
 	/* request */
@@ -101,10 +108,19 @@ struct upnphttp {
 #define FLAG_ALLOW_POST			0x100
 #define FLAG_ALLOW_SUB_UNSUB	0x200
 
+#ifdef ENABLE_HTTPS
+int init_ssl(void);
+void free_ssl(void);
+#endif /* ENABLE_HTTPS */
 
 /* New_upnphttp() */
 struct upnphttp *
 New_upnphttp(int);
+
+#ifdef ENABLE_HTTPS
+void
+InitSSL_upnphttp(struct upnphttp *);
+#endif /* ENABLE_HTTPS */
 
 /* CloseSocket_upnphttp() */
 void
@@ -120,8 +136,9 @@ Process_upnphttp(struct upnphttp *);
 
 /* BuildHeader_upnphttp()
  * build the header for the HTTP Response
- * also allocate the buffer for body data */
-void
+ * also allocate the buffer for body data
+ * return -1 on error */
+int
 BuildHeader_upnphttp(struct upnphttp * h, int respcode,
                      const char * respmsg,
                      int bodylen);

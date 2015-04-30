@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2013 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2014 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,24 +28,12 @@
 #include <idna.h>
 #endif
 
-#ifdef HAVE_ARC4RANDOM
-void rand_init(void)
-{
-  return;
-}
-
-unsigned short rand16(void)
-{
-   return (unsigned short) (arc4random() >> 15);
-}
-
-#else
-
 /* SURF random number generator */
 
 static u32 seed[32];
 static u32 in[12];
 static u32 out[8];
+static int outleft = 0;
 
 void rand_init()
 {
@@ -83,18 +71,43 @@ static void surf(void)
 
 unsigned short rand16(void)
 {
-  static int outleft = 0;
-
-  if (!outleft) {
-    if (!++in[0]) if (!++in[1]) if (!++in[2]) ++in[3];
-    surf();
-    outleft = 8;
-  }
-
+  if (!outleft) 
+    {
+      if (!++in[0]) if (!++in[1]) if (!++in[2]) ++in[3];
+      surf();
+      outleft = 8;
+    }
+  
   return (unsigned short) out[--outleft];
 }
 
-#endif
+u32 rand32(void)
+{
+ if (!outleft)
+    {
+      if (!++in[0]) if (!++in[1]) if (!++in[2]) ++in[3];
+      surf();
+      outleft = 8;
+    }
+
+  return out[--outleft];
+}
+
+u64 rand64(void)
+{
+  static int outleft = 0;
+
+  if (outleft < 2)
+    {
+      if (!++in[0]) if (!++in[1]) if (!++in[2]) ++in[3];
+      surf();
+      outleft = 8;
+    }
+  
+  outleft -= 2;
+
+  return (u64)out[outleft+1] + (((u64)out[outleft]) << 32);
+}
 
 static int check_name(char *in)
 {
@@ -108,10 +121,10 @@ static int check_name(char *in)
   
   if (in[l-1] == '.')
     {
-      if (l == 1) return 0;
       in[l-1] = 0;
+      nowhite = 1;
     }
-  
+
   for (; (c = *in); in++)
     {
       if (c == '.')
@@ -318,6 +331,19 @@ time_t dnsmasq_time(void)
 #endif
 }
 
+int netmask_length(struct in_addr mask)
+{
+  int zero_count = 0;
+
+  while (0x0 == (mask.s_addr & 0x1) && zero_count < 32) 
+    {
+      mask.s_addr >>= 1;
+      zero_count++;
+    }
+  
+  return 32 - zero_count;
+}
+
 int is_same_net(struct in_addr a, struct in_addr b, struct in_addr mask)
 {
   return (a.s_addr & mask.s_addr) == (b.s_addr & mask.s_addr);
@@ -457,7 +483,7 @@ int parse_hex(char *in, unsigned char *out, int maxlen,
 		  int j, bytes = (1 + (r - in))/2;
 		  for (j = 0; j < bytes; j++)
 		    { 
-		      char sav;
+		      char sav = sav;
 		      if (j < bytes - 1)
 			{
 			  sav = in[(j+1)*2];
@@ -544,18 +570,28 @@ void bump_maxfd(int fd, int *max)
 
 int retry_send(void)
 {
-   struct timespec waiter;
+  /* Linux kernels can return EAGAIN in perpetuity when calling
+     sendmsg() and the relevant interface has gone. Here we loop
+     retrying in EAGAIN for 1 second max, to avoid this hanging 
+     dnsmasq. */
+
+  static int retries = 0;
+  struct timespec waiter;
+
    if (errno == EAGAIN || errno == EWOULDBLOCK)
      {
        waiter.tv_sec = 0;
        waiter.tv_nsec = 10000;
        nanosleep(&waiter, NULL);
-       return 1;
+       if (retries++ < 1000)
+	 return 1;
      }
+
+   retries = 0;
    
    if (errno == EINTR)
      return 1;
-
+   
    return 0;
 }
 
@@ -600,4 +636,23 @@ int wildcard_match(const char* wildcard, const char* match)
     }
 
   return *wildcard == *match;
+}
+
+/* The same but comparing a maximum of NUM characters, like strncmp.  */
+int wildcard_matchn(const char* wildcard, const char* match, int num)
+{
+  while (*wildcard && *match && num)
+    {
+      if (*wildcard == '*')
+        return 1;
+
+      if (*wildcard != *match)
+        return 0; 
+
+      ++wildcard;
+      ++match;
+      --num;
+    }
+
+  return (!num) || (*wildcard == *match);
 }

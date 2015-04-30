@@ -16,6 +16,7 @@ OBJS += listen.o redial.o led.o qos.o forward.o misc.o mtd.o
 OBJS += buttons.o restrict.o gpio.o sched.o
 OBJS += new_qoslimit.o arpbind.o
 OBJS += tomatoanon.o
+OBJS += blink.o
 
 ifeq ($(CONFIG_BCMWL6),y)
 OBJS += blink_5g.o
@@ -36,7 +37,9 @@ endif
 ifeq ($(TCONFIG_OPENVPN),y)
 OBJS += vpn.o
 endif
-
+ifeq ($(TCONFIG_TINC),y)
+OBJS += tinc.o
+endif
 ifeq ($(TCONFIG_PPTPD),y)
 OBJS += pptpd.o
 OBJS += pptp_client.o
@@ -44,6 +47,11 @@ endif
 
 ifeq ($(TCONFIG_NOCAT),y)
 OBJS += nocat.o
+endif
+
+ifeq ($(TCONFIG_NGINX),y)
+OBJS += nginx.o
+OBJS += mysql.o
 endif
 
 ifeq ($(TOMATO_SL),1)
@@ -95,6 +103,7 @@ install: all
 	@cd $(INSTALLDIR)/sbin && ln -sf rc hotplug
 	@cd $(INSTALLDIR)/sbin && ln -sf rc service
 	@cd $(INSTALLDIR)/sbin && ln -sf rc buttons
+	@cd $(INSTALLDIR)/sbin && ln -sf rc blink
 	@cd $(INSTALLDIR)/sbin && ln -sf rc blink_5g
 	@cd $(INSTALLDIR)/sbin && ln -sf rc rcheck
 	@cd $(INSTALLDIR)/sbin && ln -sf rc radio

@@ -577,10 +577,21 @@ static const nvset_t nvset_list[] = {
 	{ "lan_netmask",		V_IP				},
 	{ "lan_gateway",		V_IP				},
 	{ "wan_dns",			V_LENGTH(0, 50)		},	// ip ip ip
+
+#ifdef TCONFIG_DNSSEC
+	{ "dnssec_enable",		V_01			},
+#endif
+
 #ifdef TCONFIG_DNSCRYPT
 	{ "dnscrypt_proxy",		V_01				},
+	{ "dnscrypt_priority",		V_RANGE(0, 2)			}, // 0=none, 1=preferred, 2=exclusive
 	{ "dnscrypt_port",		V_PORT				},
-	{ "dnscrypt_cmd",		V_LENGTH(0, 256)		},
+	{ "dnscrypt_resolver",		V_LENGTH(0, 40)			},
+	{ "dnscrypt_log",		V_RANGE(0, 99)			},
+	{ "dnscrypt_manual",		V_01				},
+	{ "dnscrypt_provider_name",	V_LENGTH(0, 60)			},
+	{ "dnscrypt_provider_key",	V_LENGTH(0, 80)			},
+	{ "dnscrypt_resolver_address",	V_LENGTH(0, 50)			},
 #endif
 	{ "lan_state",			V_01				},
 	{ "lan_desc",			V_01				},
@@ -692,6 +703,7 @@ static const nvset_t nvset_list[] = {
 	{ "ipv6_prefix_length",		V_RANGE(3, 127)			},
 	{ "ipv6_rtr_addr",		V_IPV6(0)			},
 	{ "ipv6_radvd",			V_01				},
+	{ "ipv6_dhcpd",			V_01				},
 	{ "ipv6_accept_ra",		V_NUM				},
 	{ "ipv6_tun_addr",		V_IPV6(1)			},
 	{ "ipv6_tun_addrlen",		V_RANGE(3, 127)			},
@@ -702,9 +714,11 @@ static const nvset_t nvset_list[] = {
 	{ "ipv6_tun_ttl",		V_NUM				},	// Tunnel TTL
 	{ "ipv6_dns",			V_LENGTH(0, 40*3)		},	// ip6 ip6 ip6
 	{ "ipv6_6rd_prefix",		V_IPV6(0)			},
-	{ "ipv6_6rd_prefix_length",	V_RANGE(32, 62)			},
+	{ "ipv6_6rd_prefix_length",	V_RANGE(3, 127)			},
 	{ "ipv6_6rd_borderrelay",	V_IP				},
-	{ "ipv6_6rd_ipv4masklen",	V_RANGE(0, 30)			},
+	{ "ipv6_6rd_ipv4masklen",	V_RANGE(0, 32)			},
+	{ "ipv6_vlan",			V_RANGE(0, 7)			},	// Enable IPv6 on 1=LAN1 2=LAN2 4=LAN3
+	{ "ipv6_isp_opt",		V_01				},	// wan.c add eval option for dhcpd
 #endif
 
 // basic-wfilter
@@ -759,6 +773,7 @@ static const nvset_t nvset_list[] = {
 	{ "udpxy_port",			V_RANGE(0, 65535)		},
 	{ "nf_loopback",		V_NUM				},
 	{ "ne_syncookies",		V_01				},
+	{ "DSCP_fix_enable",		V_01				},
 	{ "ne_snat",			V_01				},
 	{ "dhcp_pass",			V_01				},
 #ifdef TCONFIG_EMF
@@ -947,6 +962,7 @@ static const nvset_t nvset_list[] = {
 	{ "https_lanport",		V_PORT				},
 	{ "web_wl_filter",		V_01				},
 	{ "web_css",			V_LENGTH(1, 32)		},
+	{ "web_dir",			V_LENGTH(1, 32)		},
 	{ "ttb_css",			V_LENGTH(0, 128)		},
 	{ "web_mx",				V_LENGTH(0, 128)	},
 	{ "http_wanport",		V_PORT				},
@@ -962,6 +978,8 @@ static const nvset_t nvset_list[] = {
 	{ "sshd_authkeys",		V_TEXT(0, 4096)		},
 	{ "rmgt_sip",			V_LENGTH(0, 512)	},
 	{ "ne_shlimit",			V_TEXT(1, 50)		},
+	{ "http_username",		V_LENGTH(0, 32)		},
+	{ "http_root",			V_01				},
 
 // admin-bwm
 	{ "rstats_enable",		V_01				},
@@ -1075,7 +1093,6 @@ static const nvset_t nvset_list[] = {
 // admin-tomatoanon
 	{ "tomatoanon_answer",		V_RANGE(0, 1)			},
 	{ "tomatoanon_enable",		V_RANGE(-1, 1)			},
-	{ "tomatoanon_cru",		V_RANGE(1, 12)			},
 	{ "tomatoanon_id",		V_LENGTH(0, 32)			},
 	{ "tomatoanon_notify",		V_01				},
 
@@ -1085,9 +1102,6 @@ static const nvset_t nvset_list[] = {
 	{ "usb_uhci",			V_RANGE(-1, 1)			},	// -1 - disabled, 0 - off, 1 - on
 	{ "usb_ohci",			V_RANGE(-1, 1)			},
 	{ "usb_usb2",			V_RANGE(-1, 1)			},
-#if defined(LINUX26) && defined(TCONFIG_MICROSD)
-	{ "usb_mmc",			V_RANGE(-1, 1)			},
-#endif
 	{ "usb_irq_thresh",		V_RANGE(0, 6)			},
 	{ "usb_storage",		V_01				},
 	{ "usb_printer",		V_01				},
@@ -1200,6 +1214,7 @@ static const nvset_t nvset_list[] = {
 	{ "qosl_dlc",                    V_RANGE(0, 999999)     },
 	{ "qosl_tcp",                    V_RANGE(0, 1000)       },
 	{ "qosl_udp",                    V_RANGE(0, 100)        },
+	{ "limit_br0_prio",              V_RANGE(0, 5)          },
 	{ "limit_br1_enable",            V_01                   },
 	{ "limit_br1_ulr",               V_RANGE(0, 999999)     },
 	{ "limit_br1_ulc",               V_RANGE(0, 999999)     },
@@ -1262,6 +1277,9 @@ static const nvset_t nvset_list[] = {
 	{ "bt_ul_queue_enable",         V_01                            },
 	{ "bt_ul_queue_size",           V_RANGE(1, 30)                  },
 	{ "bt_message",                 V_RANGE(0, 3)                   },
+	{ "bt_log",                     V_01                            },
+	{ "bt_log_path",                V_LENGTH(0, 50)                 },
+
 #endif
 
 #ifdef TCONFIG_NFS
@@ -1289,6 +1307,56 @@ static const nvset_t nvset_list[] = {
 	{ "NC_MACWhiteList",		V_LENGTH(0, 255)		},
 	{ "NC_SplashFile",		V_LENGTH(0, 8192)		},
 	{ "NC_BridgeLAN",		V_LENGTH(0, 50)			},
+#endif
+
+// NGinX Roadkill-Victek
+#ifdef TCONFIG_NGINX
+	{"nginx_enable",		V_01			}, // NGinX enabled
+	{"nginx_php",			V_01			}, // PHP enabled
+	{"nginx_keepconf",		V_01			}, // NGinX configuration files overwrite flag
+	{"nginx_docroot",		V_LENGTH(0, 255)	}, // root files path
+	{"nginx_port",			V_PORT			}, // listening port
+	{"nginx_fqdn",			V_LENGTH(0, 255)	}, // server name
+	{"nginx_upload",		V_LENGTH(1, 1000)	}, // upload file size limit
+	{"nginx_remote",		V_01			},
+	{"nginx_priority",		V_LENGTH(0, 255)	}, // server priority
+	{"nginx_custom",		V_TEXT(0, 4096)		}, // user window to add parameters to nginx.conf
+	{"nginx_httpcustom",		V_TEXT(0, 4096)		}, // user window to add parameters to nginx.conf
+	{"nginx_servercustom",		V_TEXT(0, 4096)		}, // user window to add parameters to nginx.conf
+	{"nginx_phpconf",		V_TEXT(0, 4096)		}, // user window to add parameters to php.ini
+	{"nginx_user",			V_LENGTH(0, 255)	}, // user used to start nginx and spawn-fcgi
+	{"nginx_override",		V_01			},
+	{"nginx_overridefile",		V_TEXT(0, 4096)		},
+
+// bwq518 - MySQL
+        { "mysql_enable",                               V_01                    },
+        { "mysql_sleep",                                V_RANGE(1,60)           },
+        { "mysql_check",                                V_01                    },
+        { "mysql_check_time",                           V_RANGE(1,55)           },
+        { "mysql_binary",                               V_LENGTH(0, 50)         },
+        { "mysql_binary_custom",                        V_LENGTH(0, 50)         },
+        { "mysql_usb_enable",                           V_01                    },
+        { "mysql_dlroot",                               V_LENGTH(0,50)          },
+        { "mysql_datadir",                              V_LENGTH(0,64)          },
+        { "mysql_tmpdir",                               V_LENGTH(0,64)          },
+        { "mysql_server_custom",                        V_TEXT(0,1024)          },
+        { "mysql_port",                                 V_PORT                  },
+        { "mysql_allow_anyhost",                        V_01                    },
+        { "mysql_init_rootpass",                        V_01                    },
+        { "mysql_username",                             V_TEXT(0,50)            }, // mysqladmin username
+        { "mysql_passwd",                               V_TEXT(0,50)            }, // mysqladmin password
+        { "mysql_key_buffer",                           V_RANGE(0,1024)         }, // MB
+        { "mysql_max_allowed_packet",                   V_RANGE(0,1024)         }, // MB
+        { "mysql_thread_stack",                         V_RANGE(0,1024000)      }, // KB
+        { "mysql_thread_cache_size",                    V_RANGE(0,999999)       },
+        { "mysql_init_priv",                            V_01                    },
+        { "mysql_table_open_cache",                     V_RANGE(1,999999)       },
+        { "mysql_sort_buffer_size",                     V_RANGE(0,1024000)      }, //KB
+        { "mysql_read_buffer_size",                     V_RANGE(0,1024000)      }, //KB
+        { "mysql_query_cache_size",                     V_RANGE(0,1024)         }, //MB
+        { "mysql_read_rnd_buffer_size",                 V_RANGE(0,1024000)      }, //KB
+        { "mysql_net_buffer_length",                    V_RANGE(0,1024)         }, //K
+        { "mysql_max_connections",                      V_RANGE(0,999999)       },
 #endif
 
 #ifdef TCONFIG_OPENVPN
@@ -1329,6 +1397,7 @@ static const nvset_t nvset_list[] = {
 	{ "vpn_server1_crt",      V_NONE              },
 	{ "vpn_server1_key",      V_NONE              },
 	{ "vpn_server1_dh",       V_NONE              },
+	{ "vpn_server1_br",       V_LENGTH(0, 50)     },
 	{ "vpn_server2_poll",     V_RANGE(0, 1440)    },
 	{ "vpn_server2_if",       V_TEXT(3, 3)        },  // tap, tun
 	{ "vpn_server2_proto",    V_TEXT(3, 10)       },  // udp, tcp-server
@@ -1362,6 +1431,7 @@ static const nvset_t nvset_list[] = {
 	{ "vpn_server2_crt",      V_NONE              },
 	{ "vpn_server2_key",      V_NONE              },
 	{ "vpn_server2_dh",       V_NONE              },
+	{ "vpn_server2_br",       V_LENGTH(0, 50)     },
 	{ "vpn_client_eas",       V_NONE              },
 	{ "vpn_client1_poll",     V_RANGE(0, 1440)    },
 	{ "vpn_client1_if",       V_TEXT(3, 3)        },  // tap, tun
@@ -1394,6 +1464,7 @@ static const nvset_t nvset_list[] = {
 	{ "vpn_client1_useronly", V_01                },
 	{ "vpn_client1_tlsremote",V_01                },
 	{ "vpn_client1_cn",       V_NONE              },
+	{ "vpn_client1_br",       V_LENGTH(0, 50)     },
 	{ "vpn_client2_poll",     V_RANGE(0, 1440)    },
 	{ "vpn_client2_if",       V_TEXT(3, 3)        },  // tap, tun
 	{ "vpn_client2_bridge",   V_01                },
@@ -1425,6 +1496,7 @@ static const nvset_t nvset_list[] = {
 	{ "vpn_client2_useronly", V_01                },
 	{ "vpn_client2_tlsremote",V_01                },
 	{ "vpn_client2_cn",       V_NONE              },
+	{ "vpn_client2_br",       V_LENGTH(0, 50)     },
 #endif // vpn
 
 #ifdef TCONFIG_PPTPD
@@ -1441,6 +1513,28 @@ static const nvset_t nvset_list[] = {
 	{ "pptpd_mtu",			V_RANGE(576, 1500)	},
 	{ "pptpd_mru",			V_RANGE(576, 1500)	},
 	{ "pptpd_custom",		V_TEXT(0, 2048)		},
+#endif
+
+#ifdef TCONFIG_TINC
+	{"tinc_wanup",			V_RANGE(0, 1)		},
+	{"tinc_name",			V_LENGTH(0, 30)		},
+	{"tinc_devicetype",		V_TEXT(3, 3)		}, // tun, tap
+	{"tinc_mode",			V_TEXT(3, 6)		}, // switch, hub
+	{"tinc_vpn_netmask",		V_IP			},
+	{"tinc_private_rsa",		V_NONE			},
+	{"tinc_private_ed25519",	V_NONE			},
+	{"tinc_custom",			V_NONE			},
+	{"tinc_hosts",			V_NONE			},
+	{"tinc_manual_firewall",	V_RANGE(0, 2)		},
+	{"tinc_manual_tinc_up",		V_RANGE(0, 1)		},
+	// scripts
+	{"tinc_tinc_up",		V_NONE			},
+	{"tinc_tinc_down",		V_NONE			},
+	{"tinc_host_up",		V_NONE			},
+	{"tinc_host_down",		V_NONE			},
+	{"tinc_subnet_up",		V_NONE			},
+	{"tinc_subnet_down",		V_NONE			},
+	{"tinc_firewall",		V_NONE			},
 #endif
 
 #ifdef TCONFIG_TOR
@@ -1674,9 +1768,9 @@ static int save_variables(int write)
 	}
 
 	// special cases
-#ifdef CONFIG_BCMWL6
-	foreach_wif(0, &write, nv_wl_bwcap_chanspec);
-#endif
+	#ifdef CONFIG_BCMWL6
+	    foreach_wif(0, &write, nv_wl_bwcap_chanspec);
+	#endif
 
 	char *p1, *p2;
 	if (((p1 = webcgi_get("set_password_1")) != NULL) && (strcmp(p1, "**********") != 0)) {
