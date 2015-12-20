@@ -153,6 +153,7 @@ const defaults_t defaults[] = {
 	{ "modem_dev",			"ttyUSB0"			},
 	{ "modem_init",			"*99#"				},
 	{ "modem_apn",			"internet"			},
+	{ "modem_watchdog",		"2"				},
 
 	// PPPoE parameters
 	{ "pppoe_ifname",		""				},	// PPPoE enslaved interface
@@ -940,6 +941,7 @@ const defaults_t defaults[] = {
 	{ "vpn_client1_crt",      ""              },
 	{ "vpn_client1_key",      ""              },
 	{ "vpn_client1_br",       "br0"           },
+	{ "vpn_client1_nopull",   "0"             },
 	{ "vpn_client1_route"     "0"             },
 	{ "vpn_client1_routing_val", ""           },
 	{ "vpn_client2_poll",     "0"             },
@@ -969,6 +971,7 @@ const defaults_t defaults[] = {
 	{ "vpn_client2_crt",      ""              },
 	{ "vpn_client2_key",      ""              },
 	{ "vpn_client2_br",       "br0"           },
+	{ "vpn_client2_nopull",   "0"             },
 	{ "vpn_client2_route"     "0"             },
 	{ "vpn_client2_routing_val", ""           },
 #endif	// vpn

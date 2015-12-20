@@ -317,11 +317,6 @@ ifeq ($(WNDR),y)
 	# and tee only reads from stdout (not stderr)
 	@echo "*********************** Convert TRX to CHK (add Netgear Checksum) ************************" >>fpkg.log
 	# Make multiple versions / files, as file is HW specific (HW information is captured in the .chk file itself!)
-	# Make WNDR4000, Checksum starts at 0x6FFFF8 => Max size (to not touch the last 64kB block) = 7274496
-	@$(SRCBASE)/wnrtool/mkchkimg -o image/tomato-WNDR4000-$(ND)$(current_BUILD_USB)$(if $(filter $(NVRAM_SIZE),0),,-NVRAM$(NVRAM_SIZE)K)-$(current_TOMATO_VER).$(V1)$(mips_rev)$(beta)$(V2)-$(current_BUILD_DESC).chk \
-	-k image/tomato-$(ND)$(current_BUILD_USB)$(if $(filter $(NVRAM_SIZE),0),,-NVRAM$(NVRAM_SIZE)K)-$(current_TOMATO_VER).$(V1)$(mips_rev)$(beta)$(V2)-$(current_BUILD_DESC).trx \
-	-b U12H181T00_NETGEAR -r 2 2>&1 | tee -a fpkg.log
-	@$(MAKE) netgear-check MAXFSIZE=7274496 NG_FNAME=image/tomato-WNDR4000-$(ND)$(current_BUILD_USB)$(if $(filter $(NVRAM_SIZE),0),,-NVRAM$(NVRAM_SIZE)K)-$(current_TOMATO_VER).$(V1)$(mips_rev)$(beta)$(V2)-$(current_BUILD_DESC).chk
 
 	# Make WNDR3700v3, Checksum starts at 0x6FFFF8 => Max size (to not touch the last 64kB block) = 7274496
 	@$(SRCBASE)/wnrtool/mkchkimg -o image/tomato-WNDR3700v3-$(ND)$(current_BUILD_USB)$(if $(filter $(NVRAM_SIZE),0),,-NVRAM$(NVRAM_SIZE)K)-$(current_TOMATO_VER).$(V1)$(mips_rev)$(beta)$(V2)-$(current_BUILD_DESC).chk \
@@ -679,6 +674,10 @@ define RouterOptions
 		sed -i "/TCONFIG_ADBLOCK/d" $(1); \
 		echo "TCONFIG_ADBLOCK=y" >>$(1); \
 	fi; \
+	if [ "$(NAND)" = "y" ]; then \
+		sed -i "/TCONFIG_NAND/d" $(1); \
+		echo "TCONFIG_NAND=y" >>$(1); \
+	fi; \
 	if [ "$(TINC)" = "y" ]; then \
 		sed -i "/TCONFIG_TINC/d" $(1); \
 		echo "TCONFIG_TINC=y" >>$(1); \
@@ -971,6 +970,24 @@ define KernelConfig
 	if [ "$(USBAP)" = "y" ]; then \
 		echo "CONFIG_WL_USBAP=y" >>$(1); \
 		echo 'CONFIG_WL_APSTA="wlconfig_lx_router_high"' >>$(1); \
+		sed -i "/CONFIG_USB_USBNET/d" $(1); \
+		echo "# CONFIG_USB_USBNET is not set" >>$(1); \
+		sed -i "/CONFIG_USB_NET_CDCETHER/d" $(1); \
+		echo "# CONFIG_USB_NET_CDCETHER is not set" >>$(1); \
+		sed -i "/CONFIG_USB_NET_CDC_NCM/d" $(1); \
+		echo "# CONFIG_USB_NET_CDC_NCM is not set" >>$(1); \
+		sed -i "/CONFIG_USB_NET_HUAWEIETHER/d" $(1); \
+		echo "# CONFIG_USB_NET_HUAWEIETHER is not set" >>$(1); \
+		sed -i "/CONFIG_USB_NET_QMI_WWAN/d" $(1); \
+		echo "# CONFIG_USB_NET_QMI_WWAN is not set" >>$(1); \
+		sed -i "/CONFIG_USB_IPHETH/d" $(1); \
+		echo "# CONFIG_USB_IPHETH is not set" >>$(1); \
+		sed -i "/CONFIG_USB_NET_RNDIS_HOST/d" $(1); \
+		echo "# CONFIG_USB_NET_RNDIS_HOST is not set" >>$(1); \
+		sed -i "/CONFIG_USB_WDM/d" $(1); \
+		echo "# CONFIG_USB_WDM is not set" >>$(1); \
+		sed -i "/CONFIG_USB_ACM/d" $(1); \
+		echo "# CONFIG_USB_ACM is not set" >>$(1); \
 	else \
 		echo "# CONFIG_WL_USBAP is not set" >>$(1); \
 		echo 'CONFIG_WL_APSTA="wlconfig_lx_router_apsta"' >>$(1); \
@@ -1074,7 +1091,7 @@ endif
 ## Mega-VPN
 o:
 ifeq ($(CONFIG_LINUX26),y)
-	@$(MAKE) bin OPENVPN=y NTFS=y BBEXTRAS=y USBEXTRAS=y EBTABLES=y MEDIASRV=y IPV6SUPP=y B=E BUILD_DESC="Mega-VPN" USB="USB" NOCAT=y BTCLIENT=y DNSCRYPT=y SNMP=y UPS=y PPTPD=y TR_EXTRAS=y TOR=y IPSEC=y RAID=y ADBLOCK=y
+	@$(MAKE) bin OPENVPN=y NTFS=y BBEXTRAS=y USBEXTRAS=y EBTABLES=y MEDIASRV=y IPV6SUPP=y B=E BUILD_DESC="Mega-VPN" USB="USB" NOCAT=y BTCLIENT=y DNSCRYPT=y SNMP=y UPS=y PPTPD=y TR_EXTRAS=y TOR=y IPSEC=y RAID=y ADBLOCK=y DNSSEC=y TINC=y NANO=y
 endif
 
 ## All-In-One (AIO) MIPS1 - only for router with more than 8MB flash!! ZTE H618B
@@ -1315,8 +1332,8 @@ ac66z:
 w1800re:
 	@$(MAKE) e MIPS32=r2 NVRAM_64K=y ASUS_TRX="W1800R"
 
-w1800rz:
-	@$(MAKE) z MIPS32=r2 NVRAM_64K=y ASUS_TRX="W1800R"
+w1800ro:
+	@$(MAKE) o MIPS32=r2 NVRAM_64K=y ASUS_TRX="W1800R"
 
 r6300e:
 	@$(MAKE) e MIPS32=r2 NVRAM_64K=y NAND=y ASUS_TRX="R6300V1"

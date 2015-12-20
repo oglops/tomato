@@ -610,6 +610,7 @@ static const nvset_t nvset_list[] = {
 	{ "modem_dev",			V_LENGTH(0,8)			},
 	{ "modem_init",			V_LENGTH(0,25)			},
 	{ "modem_apn",			V_LENGTH(0,25)			},
+	{ "modem_watchdog",		V_RANGE(0,30)			},
 #endif
 
 	// LAN networks
@@ -1469,6 +1470,7 @@ static const nvset_t nvset_list[] = {
 	{ "vpn_client1_tlsremote",V_01                },
 	{ "vpn_client1_cn",       V_NONE              },
 	{ "vpn_client1_br",       V_LENGTH(0, 50)     },
+	{ "vpn_client1_nopull",   V_01                },
 	{ "vpn_client1_route",    V_01                },
 	{ "vpn_client1_routing_val", V_NONE           },
 	{ "vpn_client2_poll",     V_RANGE(0, 1440)    },
@@ -1503,6 +1505,7 @@ static const nvset_t nvset_list[] = {
 	{ "vpn_client2_tlsremote",V_01                },
 	{ "vpn_client2_cn",       V_NONE              },
 	{ "vpn_client2_br",       V_LENGTH(0, 50)     },
+	{ "vpn_client2_nopull",   V_01                },
 	{ "vpn_client2_route",    V_01                },
 	{ "vpn_client2_routing_val", V_NONE           },
 #endif // vpn
