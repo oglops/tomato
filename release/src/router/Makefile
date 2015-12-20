@@ -2110,6 +2110,9 @@ openvpn/.conf: openssl lzo
 	--with-crypto-library=openssl \
 	--disable-debug --disable-plugin-auth-pam --disable-plugin-down-root --with-plugindir=/lib --enable-management --disable-small \
 	--disable-selinux --disable-socks --enable-password-save \
+	IFCONFIG="/sbin/ifconfig" \
+	ROUTE="/sbin/route" \
+	IPROUTE="/usr/sbin/ip" \
 	OPENSSL_SSL_CFLAGS="-I$(TOP)/openssl/include" \
 	OPENSSL_SSL_LIBS="-L$(TOP)/openssl -lssl" \
 	ac_cv_lib_resolv_gethostbyname=no
