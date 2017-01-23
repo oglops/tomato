@@ -1142,6 +1142,13 @@ ifneq ($(CONFIG_LINUX26),y)
 	@$(MAKE) bin OPENVPN=y BBEXTRAS=y BCM57=y B=V BUILD_DESC="SD-VPN" USB="" SDHC=y DNSCRYPT=y PPTPD=y
 endif
 
+# max without openvpn
+q3m:
+	@$(MAKE) bin BBEXTRAS=y EBTABLES=y IPV6SUPP=y B=E BUILD_DESC="Max" USB="" NOCAT=y NFS=y SNMP=y DNSCRYPT=y PPTPD=y TOR=y IPSEC=y MULTIWAN=y
+
+# vpn with jffs
+q3v:
+	@$(MAKE) bin B=V BUILD_DESC="VPN" USB="" PPTPD=y IPV6SUPP=y MULTIWAN=y OPENVPN=y
 
 ## Make Mips32r2 builds ##
 ifeq ($(CONFIG_LINUX26),y)
@@ -1191,6 +1198,12 @@ r2v:
 
 r2m:
 	@$(MAKE) m MIPS32=r2
+
+r2q3m:
+	@$(MAKE) q3m MIPS32=r2
+
+r2q3v:
+	@$(MAKE) q3v MIPS32=r2
 
 #Linksys E-series witk 60K NVRAM builds
 n60z:
@@ -1505,6 +1518,9 @@ ifeq ($(CONFIG_LINUX26),y)
 	@echo ""
 	@echo "r64e         RT-N66u build VPN"
 	@echo "r64z         RT-N66u build AIO"
+	@echo ""
+	@echo "r2q3m        Netcore q3 build Max without OPENVPN"
+	@echo "r2q3v        Netcore q3 build VPN with JFFS"
 ifeq ($(CONFIG_BCMWL6),y)
 	@echo "       Routers with AC mode support"
 	@echo "ac66e        RT-AC66u build VPN"
