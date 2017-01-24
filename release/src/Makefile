@@ -1150,6 +1150,9 @@ q3m:
 q3v:
 	@$(MAKE) bin B=V BUILD_DESC="VPN" USB="" PPTPD=y IPV6SUPP=y MULTIWAN=y OPENVPN=y
 
+hg320:
+	@$(MAKE) bin OPENVPN=y BBEXTRAS=y EBTABLES=y IPV6SUPP=y B=E BUILD_DESC="Max" USB="USB" USBEXTRAS=y NOCAT=y NFS=y SNMP=y DNSCRYPT=y PPTPD=y TOR=y IPSEC=y MULTIWAN=y HFS=y DNSSEC=y TINC=y NANO=y
+
 ## Make Mips32r2 builds ##
 ifeq ($(CONFIG_LINUX26),y)
 
@@ -1204,6 +1207,9 @@ r2q3m:
 
 r2q3v:
 	@$(MAKE) q3v MIPS32=r2
+
+r2hg320m:
+	@$(MAKE) hg320 MIPS32=r2
 
 #Linksys E-series witk 60K NVRAM builds
 n60z:
@@ -1323,6 +1329,9 @@ n60:
 
 n60init:
 	@$(MAKE) bin MIPS32=r2 B=E BUILD_DESC="TendaN60-init" USB="" NO_JFFS=y NO_CIFS=y NO_HTTPS=y NO_XXTP=y NO_ZEBRA=y NO_SSH=y
+
+hg32064k:
+	@$(MAKE) r2hg320m NVRAM_64K=y
 
 # it`s not possible to flash tomato on this router. Maybe in the future.
 #l600n:
@@ -1521,6 +1530,8 @@ ifeq ($(CONFIG_LINUX26),y)
 	@echo ""
 	@echo "r2q3m        Netcore q3 build Max without OPENVPN"
 	@echo "r2q3v        Netcore q3 build VPN with JFFS"
+	@echo ""
+	@echo "hg32064k     hg320 build Max 64k nvram"
 ifeq ($(CONFIG_BCMWL6),y)
 	@echo "       Routers with AC mode support"
 	@echo "ac66e        RT-AC66u build VPN"
