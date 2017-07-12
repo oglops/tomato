@@ -112,17 +112,17 @@ AC_ARG_WITH([systemd],
 )
 
 have_systemd=no
-AS_IF([test "x$with_systemd" = "xyes"], [
-  PKG_CHECK_MODULES([SYSTEMD], [libsystemd], [have_systemd=yes], [
-    PKG_CHECK_MODULES([SYSTEMD_DAEMON], [libsystemd-daemon], [have_systemd=yes], [have_systemd=no])
-  ])
-  AS_CASE([$with_systemd:$have_systemd],
-    [yes:no],
-      [AC_MSG_ERROR([systemd expected but libsystemd not found -- maybe you need to install the pkg-config and libsystemd-dev packages])],
-    [*:yes],
-       AC_DEFINE([HAVE_LIBSYSTEMD], [1], [Define if libsystemd is available])
-  )
-])
+# AS_IF([test "x$with_systemd" = "xyes"], [
+#   PKG_CHECK_MODULES([SYSTEMD], [libsystemd], [have_systemd=yes], [
+#     PKG_CHECK_MODULES([SYSTEMD_DAEMON], [libsystemd-daemon], [have_systemd=yes], [have_systemd=no])
+#   ])
+#   AS_CASE([$with_systemd:$have_systemd],
+#     [yes:no],
+#       [AC_MSG_ERROR([systemd expected but libsystemd not found -- maybe you need to install the pkg-config and libsystemd-dev packages])],
+#     [*:yes],
+#        AC_DEFINE([HAVE_LIBSYSTEMD], [1], [Define if libsystemd is available])
+#   )
+# ])
 AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$have_systemd" = "xyes"])
 
 AC_SUBST([MAINT])
