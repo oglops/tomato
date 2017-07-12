@@ -2526,7 +2526,7 @@ dnscrypt/stamp-h1: libsodium
 	CFLAGS="-Os -Wall $(EXTRACFLAGS) -ffunction-sections -fdata-sections" \
 	CPPFLAGS="-I$(TOP)/libsodium/src/libsodium/include" \
 	LDFLAGS="-ffunction-sections -fdata-sections -Wl,--gc-sections -L$(TOP)/libsodium/src/libsodium/.libs" \
-	$(CONFIGURE) --prefix=/usr --disable-ssp
+	$(CONFIGURE) --prefix=/usr --disable-ssp --with-systemd=no
 	touch dnscrypt/stamp-h1
 
 dnscrypt: dnscrypt/stamp-h1
