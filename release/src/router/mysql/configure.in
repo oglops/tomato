@@ -1600,7 +1600,7 @@ esac
 case $SYSTEM_TYPE in
   *netware*) ;;
   *)
-AC_SYS_RESTARTABLE_SYSCALLS
+# AC_SYS_RESTARTABLE_SYSCALLS
     ;;
 esac
 
