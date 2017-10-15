@@ -1334,7 +1334,7 @@ n60:
 n60init:
 	@$(MAKE) bin MIPS32=r2 B=E BUILD_DESC="TendaN60-init" USB="" NO_JFFS=y NO_CIFS=y NO_HTTPS=y NO_XXTP=y NO_ZEBRA=y NO_SSH=y
 
-hg320:
+hg32032k:
 	@$(MAKE) r2hg320m
 	
 hg32064k:
