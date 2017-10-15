@@ -1334,6 +1334,9 @@ n60:
 n60init:
 	@$(MAKE) bin MIPS32=r2 B=E BUILD_DESC="TendaN60-init" USB="" NO_JFFS=y NO_CIFS=y NO_HTTPS=y NO_XXTP=y NO_ZEBRA=y NO_SSH=y
 
+hg32032k:
+	@$(MAKE) r2hg320m
+	
 hg32064k:
 	@$(MAKE) r2hg320m NVRAM_64K=y
 
@@ -1535,6 +1538,7 @@ ifeq ($(CONFIG_LINUX26),y)
 	@echo "r2q3m        Netcore q3 build Max without OPENVPN"
 	@echo "r2q3v        Netcore q3 build VPN with JFFS"
 	@echo ""
+	@echo "hg320        hg320 build Max"
 	@echo "hg32064k     hg320 build Max 64k nvram"
 ifeq ($(CONFIG_BCMWL6),y)
 	@echo "       Routers with AC mode support"
