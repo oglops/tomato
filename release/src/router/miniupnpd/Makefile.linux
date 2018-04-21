@@ -158,7 +158,9 @@ endif # ($(TEST),1)
 
 TEST := $(shell $(PKG_CONFIG) --exists uuid && echo 1)
 ifeq ($(TEST),1)
-LDLIBS += $(shell $(PKG_CONFIG) --static --libs-only-l uuid)
+# LDLIBS += $(shell $(PKG_CONFIG) --static --libs-only-l uuid)
+LDLIBS += -L$(HOME)/uuid-install/lib -luuid
+CFLAGS += -I$(HOME)/uuid-install/include
 else
 $(info please install uuid-dev package / libuuid)
 endif # ($(TEST),1)
